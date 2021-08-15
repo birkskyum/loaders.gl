@@ -22,7 +22,7 @@ export const isBrowser: boolean =
   typeof process !== 'object' || String(process) !== '[object process]' || process.browser;
 
 /** true if running on a worker thread */
-export const isWorker: boolean = typeof importScripts === 'function';
+export const isWorker = false;
 
 /** true if running on a mobile device */
 export const isMobile: boolean =
