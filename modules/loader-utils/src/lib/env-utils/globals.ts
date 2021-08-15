@@ -23,7 +23,7 @@ export const isBrowser: boolean =
   typeof process !== 'object' || String(process) !== '[object process]' || process.browser;
 
 /** true if running in a worker thread */
-export const isWorker: boolean = typeof importScripts === 'function';
+export const isWorker = false;
 
 // Extract node major version
 const matches =
