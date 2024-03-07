@@ -15,6 +15,9 @@ export type ParquetCompression =
 export type RepetitionType = 'REQUIRED' | 'OPTIONAL' | 'REPEATED';
 export type ParquetType = PrimitiveType | OriginalType;
 
+/**
+ * Physical type
+ */
 export type PrimitiveType =
   // Base Types
   | 'BOOLEAN' // 0
@@ -26,6 +29,9 @@ export type PrimitiveType =
   | 'BYTE_ARRAY' // 6,
   | 'FIXED_LEN_BYTE_ARRAY'; // 7
 
+/**
+ * Logical type
+ */
 export type OriginalType =
   // Converted Types
   | 'UTF8' // 0
@@ -34,6 +40,10 @@ export type OriginalType =
   // | 'LIST' // 3
   // | 'ENUM' // 4
   // | 'DECIMAL' // 5
+  | 'DECIMAL_INT32' // 5
+  | 'DECIMAL_INT64' // 5
+  | 'DECIMAL_BYTE_ARRAY' // 5
+  | 'DECIMAL_FIXED_LEN_BYTE_ARRAY' // 5
   | 'DATE' // 6
   | 'TIME_MILLIS' // 7
   | 'TIME_MICROS' // 8
@@ -60,6 +70,8 @@ export interface SchemaDefinition {
 export interface FieldDefinition {
   type?: ParquetType;
   typeLength?: number;
+  presision?: number;
+  scale?: number;
   encoding?: ParquetCodec;
   compression?: ParquetCompression;
   optional?: boolean;
@@ -75,6 +87,8 @@ export interface ParquetField {
   originalType?: OriginalType;
   repetitionType: RepetitionType;
   typeLength?: number;
+  presision?: number;
+  scale?: number;
   encoding?: ParquetCodec;
   compression?: ParquetCompression;
   rLevelMax: number;
@@ -84,7 +98,8 @@ export interface ParquetField {
   fields?: Record<string, ParquetField>;
 }
 
-export interface ParquetOptions {
+/** @todo better name, this is an internal type? */
+export interface ParquetReaderContext {
   type: ParquetType;
   rLevelMax: number;
   dLevelMax: number;
@@ -92,34 +107,44 @@ export interface ParquetOptions {
   column: ParquetField;
   numValues?: Int64;
   dictionary?: ParquetDictionary;
-}
-
-export interface ParquetData {
-  dlevels: number[];
-  rlevels: number[];
-  values: any[];
-  count: number;
-  pageHeaders: PageHeader[];
+  /** If true, binary values are not converted to strings */
+  preserveBinary?: boolean;
 }
 
 export interface ParquetPageData {
   dlevels: number[];
   rlevels: number[];
-  values: any[];
+  /** Actual column chunks */
+  values: any[]; // ArrayLike<any>;
   count: number;
   dictionary?: ParquetDictionary;
+  /** The "raw" page header from the file */
   pageHeader: PageHeader;
 }
 
-export interface ParquetRecord {
+export interface ParquetRow {
   [key: string]: any;
 }
 
-export class ParquetBuffer {
+/** @
+ * Holds data for one row group (column chunks) */
+export class ParquetRowGroup {
+  /** Number of rows in this page */
   rowCount: number;
-  columnData: Record<string, ParquetData>;
-  constructor(rowCount: number = 0, columnData: Record<string, ParquetData> = {}) {
+  /** Map of Column chunks */
+  columnData: Record<string, ParquetColumnChunk>;
+
+  constructor(rowCount: number = 0, columnData: Record<string, ParquetColumnChunk> = {}) {
     this.rowCount = rowCount;
     this.columnData = columnData;
   }
+}
+
+/** Holds the data for one column chunk */
+export interface ParquetColumnChunk {
+  dlevels: number[];
+  rlevels: number[];
+  values: any[];
+  count: number;
+  pageHeaders: PageHeader[];
 }

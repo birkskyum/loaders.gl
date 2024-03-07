@@ -1,6 +1,10 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import test from 'tape-promise/tape';
 import {fetchFile, makeIterator} from '@loaders.gl/core';
-import StreamingJSONParser from '@loaders.gl/json/lib/parser/streaming-json-parser';
+import StreamingJSONParser from '../../../src/lib/json-parser/streaming-json-parser';
 
 const GEOJSON_PATH = `@loaders.gl/json/test/data/geojson-big.json`;
 

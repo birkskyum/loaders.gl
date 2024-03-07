@@ -1,17 +1,42 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // TYPES
+
+export type {
+  // misc
+  DataType,
+  SyncDataType,
+  BatchableDataType,
+  // numeric array types
+  TypedArray,
+  BigTypedArray,
+  TypedArrayConstructor,
+  BigTypedArrayConstructor,
+  NumberArray,
+  NumericArray,
+  // fetch
+  FetchLike
+} from './types';
+
+// loaders
+
 export type {
   Loader,
   LoaderWithParser,
   LoaderContext,
   LoaderOptions,
-  Writer,
-  WriterOptions,
-  DataType,
-  SyncDataType,
-  BatchableDataType,
-  IFileSystem,
-  IRandomAccessReadFileSystem
-} from './types';
+  LoaderOptionsType,
+  LoaderReturnType,
+  LoaderBatchType
+} from './loader-types';
+
+export {parseFromContext, parseSyncFromContext, parseInBatchesFromContext} from './loader-types';
+
+// writers
+
+export type {Writer, WriterWithEncoder, WriterOptions, WriterOptionsType} from './writer-types';
 
 // GENERAL UTILS
 export {assert} from './lib/env-utils/assert';
@@ -25,31 +50,32 @@ export {
   document
 } from './lib/env-utils/globals';
 
+export {mergeLoaderOptions} from './lib/option-utils/merge-loader-options';
+
 // LOADERS.GL-SPECIFIC WORKER UTILS
 export {createLoaderWorker} from './lib/worker-loader-utils/create-loader-worker';
 export {parseWithWorker, canParseWithWorker} from './lib/worker-loader-utils/parse-with-worker';
+export {canEncodeWithWorker} from './lib/worker-loader-utils/encode-with-worker';
 
 // PARSER UTILS
 export {parseJSON} from './lib/parser-utils/parse-json';
 
 // MEMORY COPY UTILS
 export {
-  toArrayBuffer,
   sliceArrayBuffer,
   concatenateArrayBuffers,
+  concatenateArrayBuffersFromArray,
   concatenateTypedArrays,
   compareArrayBuffers
 } from './lib/binary-utils/array-buffer-utils';
 export {padToNBytes, copyToArray, copyArrayBuffer} from './lib/binary-utils/memory-copy-utils';
 export {
-  copyPaddedArrayBufferToDataView,
-  copyPaddedStringToDataView
-} from './lib/binary-utils/binary-copy-utils';
-export {
   padStringToByteAlignment,
   copyStringToDataView,
-  copyBinaryToDataView
-} from './lib/binary-utils/encode-utils';
+  copyBinaryToDataView,
+  copyPaddedArrayBufferToDataView,
+  copyPaddedStringToDataView
+} from './lib/binary-utils/dataview-copy-utils';
 export {getFirstCharacters, getMagicString} from './lib/binary-utils/get-first-characters';
 
 // ITERATOR UTILS
@@ -64,17 +90,68 @@ export {forEach, concatenateArrayBuffersAsync} from './lib/iterators/async-itera
 // REQUEST UTILS
 export {default as RequestScheduler} from './lib/request-utils/request-scheduler';
 
-// NODE `path`` REPLACEMENT
-import * as path from './lib/path-utils/path';
-export {path};
+// PATH HELPERS
 export {setPathPrefix, getPathPrefix, resolvePath} from './lib/path-utils/file-aliases';
 export {addAliases as _addAliases} from './lib/path-utils/file-aliases';
 
-// NODE `fs` WRAPPERS
-import * as fs from './lib/node/fs';
-export {fs};
-
-// NODE `buffer` WRAPPERS
-export {isBuffer, toBuffer, bufferToArrayBuffer} from './lib/binary-utils/buffer-utils';
-
+// MICRO LOADERS
 export {JSONLoader} from './json-loader';
+
+// NODE support
+
+// Node.js emulation (can be used in browser)
+
+// Avoid direct use of `Buffer` which pulls in 50KB polyfill
+export {isBuffer, toBuffer, toArrayBuffer} from './lib/binary-utils/memory-conversion-utils';
+
+// Note.js wrappers (can be safely imported, but not used in browser)
+
+// Use instead of importing 'util' to avoid node dependencies
+export {promisify1, promisify2} from './lib/node/promisify';
+
+// `path` replacement (avoids bundling big path polyfill)
+import * as path from './lib/path-utils/path';
+export {path};
+
+// Use instead of importing 'stream' to avoid node dependencies`
+import * as stream from './lib/node/stream';
+export {stream};
+
+// EXPERIMENTAL: FILE SYSTEMS
+
+export type {ReadableFile, WritableFile, Stat} from './lib/files/file';
+export {BlobFile} from './lib/files/blob-file';
+export {HttpFile} from './lib/files/http-file';
+export {NodeFileFacade as NodeFile} from './lib/files/node-file-facade';
+
+export type {FileSystem, RandomAccessFileSystem} from './lib/filesystems/filesystem';
+export {NodeFileSystemFacade as NodeFilesystem} from './lib/filesystems/node-filesystem-facade';
+
+// TODO - replace with ReadableFile
+export type {FileProvider} from './lib/file-provider/file-provider';
+export {isFileProvider} from './lib/file-provider/file-provider';
+export {FileHandleFile} from './lib/file-provider/file-handle-file';
+export {DataViewFile} from './lib/file-provider/data-view-file';
+
+// EXPERIMENTAL: DATA SOURCES
+export type {Service} from './service-types';
+
+export type {DataSourceProps} from './lib/sources/data-source';
+export {DataSource} from './lib/sources/data-source';
+
+export type {ImageType} from './lib/sources/utils/image-type';
+export type {ImageSourceProps, ImageSourceMetadata} from './lib/sources/image-source';
+export type {GetImageParameters} from './lib/sources/image-source';
+export {ImageSource} from './lib/sources/image-source';
+
+export type {
+  TileSourceProps,
+  TileSourceMetadata,
+  GetTileParameters,
+  TileLoadParameters
+} from './lib/sources/tile-source';
+export type {TileSource} from './lib/sources/tile-source';
+
+export type {ImageTileSource} from './lib/sources/image-tile-source';
+
+export type {VectorTileSource} from './lib/sources/vector-tile-source';

@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import type {
   WorkerMessageType,
   WorkerMessagePayload,
@@ -11,17 +15,23 @@ import WorkerBody from '../worker-farm/worker-body';
 
 /** Counter for jobs */
 let requestId = 0;
-let inputBatches;
-let options;
+let inputBatches: AsyncQueue<any>;
+let options: {[key: string]: any};
 
-export type ProcessOnMainThread = (data: any, options?: {[key: string]: any}, context?) => any;
+export type ProcessOnMainThread = (
+  data: any,
+  options?: {[key: string]: any},
+  context?: WorkerContext
+) => any;
 
 /**
  * Set up a WebWorkerGlobalScope to talk with the main thread
  */
-export function createWorker(process: Process, processInBatches?: ProcessInBatches): void {
-  // Check that we are actually in a worker thread
-  if (typeof self === 'undefined') {
+export async function createWorker(
+  process: Process,
+  processInBatches?: ProcessInBatches
+): Promise<void> {
+  if (!(await WorkerBody.inWorkerThread())) {
     return;
   }
 
@@ -45,9 +55,9 @@ export function createWorker(process: Process, processInBatches?: ProcessInBatch
           if (!processInBatches) {
             throw new Error('Worker does not support batched processing');
           }
-          inputBatches = new AsyncQueue();
+          inputBatches = new AsyncQueue<any>();
           options = payload.options || {};
-          const resultIterator = processInBatches(inputBatches, options, context?.processInBatches);
+          const resultIterator = processInBatches(inputBatches, options, context);
           for await (const batch of resultIterator) {
             WorkerBody.postMessage('output-batch', {result: batch});
           }
@@ -71,13 +81,13 @@ export function createWorker(process: Process, processInBatches?: ProcessInBatch
   };
 }
 
-function processOnMainThread(arrayBuffer, options = {}) {
+function processOnMainThread(arrayBuffer: ArrayBuffer, options = {}) {
   return new Promise((resolve, reject) => {
     const id = requestId++;
 
     /**
      */
-    const onMessage = (type, payload) => {
+    const onMessage = (type: string, payload: WorkerMessagePayload) => {
       if (payload.id !== id) {
         // not ours
         return;

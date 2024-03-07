@@ -1,5 +1,12 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import {VERSION} from './lib/utils/version';
+
 // Types
-export type {GPUTextureFormat} from './types';
+export type {GPUTextureFormat} from '@loaders.gl/schema';
+export type {TextureLoaderOptions} from './compressed-texture-loader';
 
 // Loaders
 export {BasisLoader, BasisWorkerLoader} from './basis-loader';
@@ -7,8 +14,28 @@ export {CompressedTextureLoader, CompressedTextureWorkerLoader} from './compress
 export {CrunchLoader} from './crunch-loader';
 export {NPYLoader, NPYWorkerLoader} from './npy-loader';
 
+// Module constants
+export {BASIS_EXTERNAL_LIBRARIES} from './lib/parsers/basis-module-loader';
+export {CRUNCH_EXTERNAL_LIBRARIES} from './lib/parsers/crunch-module-loader';
+
 // Writers
 export {CompressedTextureWriter} from './compressed-texture-writer';
+export {KTX2BasisWriter} from './ktx2-basis-writer';
+
+export const KTX2BasisWriterWorker = {
+  name: 'Basis Universal Supercompressed GPU Texture',
+  id: 'ktx2-basis-writer',
+  module: 'textures',
+  version: VERSION,
+  extensions: ['ktx2'],
+  worker: true,
+  options: {
+    useSRGB: false,
+    qualityLevel: 10,
+    encodeUASTC: false,
+    mipmaps: false
+  }
+};
 
 // Texture Loading API
 export {loadImageTexture} from './lib/texture-api/load-image';
@@ -16,8 +43,8 @@ export {loadImageTextureArray} from './lib/texture-api/load-image-array';
 export {loadImageTextureCube} from './lib/texture-api/load-image-cube';
 
 // Utilities
-export {GL as GL_CONSTANTS} from './lib/gl-constants';
-
+export {GL_EXTENSIONS_CONSTANTS} from './lib/gl-extensions';
+export {selectSupportedBasisFormat} from './lib/parsers/parse-basis';
 export {getSupportedGPUTextureFormats} from './lib/utils/texture-formats';
 
 // DEPRECATED

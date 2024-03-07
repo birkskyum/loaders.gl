@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /**
  * @fileoverview gl-matrix - High performance matrix and vector operations
  * @author Brandon Jones

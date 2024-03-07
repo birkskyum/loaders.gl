@@ -2,6 +2,7 @@
   "name": "loaders.gl",
   "description": "Framework-independent loaders for visualization, 3D graphics and geospatial formats",
   "license": "MIT",
+  "type": "module",
   "private": true,
   "repository": {
     "type": "git",
@@ -20,16 +21,16 @@
     "KML"
   ],
   "workspaces": [
-    "examples/website/textures",
     "modules/*"
   ],
   "scripts": {
     "bootstrap": "yarn install-fast && ocular-bootstrap",
     "install-fast": "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true yarn",
     "start": "echo 'Please see loaders.gl website for how to run examples' && open https://loaders.gl/docs",
-    "build": "ocular-clean && ocular-build --dist esm && lerna run pre-build",
+    "clean": "ocular-clean && npm run tsclean",
+    "build": "npm run clean && ocular-build && lerna run pre-build",
     "build-workers": "lerna run pre-build",
-    "clean": "ocular-clean",
+    "tsclean": "find . -name tsconfig.tsbuildinfo -exec rm {} \\;",
     "cover": "ocular-test cover",
     "lint": "tsc && ocular-lint",
     "bump": "ocular-bump",
@@ -41,17 +42,12 @@
     "pre-push": "yarn lint"
   },
   "devDependencies": {
-    "@babel/plugin-transform-runtime": "^7.14.5",
-    "@deck.gl/core": "^8.5.0",
-    "@luma.gl/core": "^8.5.4",
-    "@luma.gl/debug": "^8.5.4",
-    "@luma.gl/test-utils": "^8.5.4",
-    "@probe.gl/bench": "^3.4.0",
-    "@probe.gl/test-utils": "^3.4.0",
+    "@probe.gl/bench": "^4.0.2",
+    "@probe.gl/test-utils": "^4.0.2",
+    "@types/tape-promise": "^4.0.1",
     "base64-inline-loader": "^1.1.1",
     "base64-loader": "^1.0.0",
-    "coveralls": "^3.0.3",
-    "ocular-dev-tools": "1.0.0-alpha.6",
+    "ocular-dev-tools": "2.0.0-alpha.18",
     "pre-commit": "^1.2.2",
     "pre-push": "^0.1.1"
   },
@@ -59,11 +55,19 @@
   "pre-push": "pre-push",
   "dependencies": {},
   "resolutions_notes": [
-    "Note: tape 4.12 and higher no longer compares 0 and -0 equally...",
-    "Note: newer prettier breaks on typescript import type"
+    "Ensure we use recent typescript",
+    "Note: prettier 3 required for JSON import assertions",
+    "apache-arrow version should be aligned with parquet-wasm version"
   ],
   "resolutions": {
-    "tape": "4.11.0",
-    "prettier": "2.3.1"
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "apache-arrow": "^15.0.0",
+    "prettier": "3.0.3",
+    "typescript": "^5.3.0"
+  },
+  "volta": {
+    "node": "18.19.0",
+    "yarn": "1.22.19"
   }
 }

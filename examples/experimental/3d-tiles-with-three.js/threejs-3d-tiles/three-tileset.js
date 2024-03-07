@@ -1,5 +1,9 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import * as THREE from 'three';
-import {Tileset3D} from '@loaders.gl/3d-tiles';
+import {Tileset3D} from '@loaders.gl/tiles';
 import {Plane} from '@math.gl/culling';
 import TileHeader from './tile-header';
 

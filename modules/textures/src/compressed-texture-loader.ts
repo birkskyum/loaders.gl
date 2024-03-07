@@ -1,11 +1,23 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import type {Loader, LoaderWithParser} from '@loaders.gl/loader-utils';
 import {VERSION} from './lib/utils/version';
 import {parseCompressedTexture} from './lib/parsers/parse-compressed-texture';
+import parseBasis from './lib/parsers/parse-basis';
+
+export type TextureLoaderOptions = {
+  'compressed-texture'?: {
+    libraryPath?: string;
+    useBasis?: boolean;
+  };
+};
 
 /**
  * Worker Loader for KTX, DDS, and PVR texture container formats
  */
-export const CompressedTextureWorkerLoader = {
+export const CompressedTextureWorkerLoader: Loader<any, never, TextureLoaderOptions> = {
   name: 'Texture Containers',
   id: 'compressed-texture',
   module: 'textures',
@@ -27,7 +39,8 @@ export const CompressedTextureWorkerLoader = {
   binary: true,
   options: {
     'compressed-texture': {
-      libraryPath: 'libs/'
+      libraryPath: 'libs/',
+      useBasis: false
     }
   }
 };
@@ -35,11 +48,24 @@ export const CompressedTextureWorkerLoader = {
 /**
  * Loader for KTX, DDS, and PVR texture container formats
  */
-export const CompressedTextureLoader = {
+export const CompressedTextureLoader: LoaderWithParser<any, never, TextureLoaderOptions> = {
   ...CompressedTextureWorkerLoader,
-  parse: async (arrayBuffer) => parseCompressedTexture(arrayBuffer)
+  parse: async (arrayBuffer: ArrayBuffer, options?: TextureLoaderOptions) => {
+    if (options?.['compressed-texture']?.useBasis) {
+      // @ts-expect-error TODO not allowed to modify inputs
+      options.basis = {
+        format: {
+          alpha: 'BC3',
+          noAlpha: 'BC1'
+        },
+        // @ts-expect-error TODO not allowed to modify inputs
+        ...options.basis,
+        containerFormat: 'ktx2',
+        module: 'encoder'
+      };
+      const result = await parseBasis(arrayBuffer, options);
+      return result[0];
+    }
+    return parseCompressedTexture(arrayBuffer);
+  }
 };
-
-// TYPE TESTS - TODO find a better way than exporting junk
-export const _TypecheckCompressedTextureWorkerLoader: Loader = CompressedTextureWorkerLoader;
-export const _TypecheckCompressedTextureLoader: LoaderWithParser = CompressedTextureLoader;

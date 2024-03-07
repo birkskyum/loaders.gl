@@ -1,10 +1,21 @@
-import type {Loader} from '@loaders.gl/loader-utils';
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import type {Loader, LoaderOptions} from '@loaders.gl/loader-utils';
 import {VERSION} from './lib/utils/version';
+
+export type QuantizedMeshLoaderOptions = LoaderOptions & {
+  'quantized-mesh'?: {
+    bounds?: [number, number, number, number];
+    skirtHeight?: number | null;
+  };
+};
 
 /**
  * Worker loader for quantized meshes
  */
-export const QuantizedMeshLoader = {
+export const QuantizedMeshLoader: Loader<any, never, QuantizedMeshLoaderOptions> = {
   name: 'Quantized Mesh',
   id: 'quantized-mesh',
   module: 'terrain',
@@ -19,5 +30,3 @@ export const QuantizedMeshLoader = {
     }
   }
 };
-
-export const _typecheckQuantizedMeshLoader: Loader = QuantizedMeshLoader;

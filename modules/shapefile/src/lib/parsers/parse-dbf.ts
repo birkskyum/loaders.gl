@@ -1,47 +1,13 @@
-import {Schema, Field, Bool, Utf8, Float64, TimestampMillisecond} from '@loaders.gl/schema';
-import BinaryChunkReader from '../streaming/binary-chunk-reader';
-
-type DBFRowsOutput = object[];
-
-interface DBFTableOutput {
-  schema?: Schema;
-  rows: DBFRowsOutput;
-}
-
-type DBFHeader = {
-  // Last updated date
-  year: number;
-  month: number;
-  day: number;
-  // Number of records in data file
-  nRecords: number;
-  // Length of header in bytes
-  headerLength: number;
-  // Length of each record
-  recordLength: number;
-  // Not sure if this is usually set
-  languageDriver: number;
-};
-
-type DBFField = {
-  name: string;
-  dataType: string;
-  fieldLength: number;
-  decimal: number;
-};
-
-type DBFResult = {
-  data: {[key: string]: any}[];
-  schema?: Schema;
-  error?: string;
-  dbfHeader?: DBFHeader;
-  dbfFields?: DBFField[];
-  progress?: {
-    bytesUsed: number;
-    rowsTotal: number;
-    rows: number;
-  };
-};
+import {Field, ObjectRowTable} from '@loaders.gl/schema';
+import {BinaryChunkReader} from '../streaming/binary-chunk-reader';
+import {
+  DBFLoaderOptions,
+  DBFResult,
+  DBFTableOutput,
+  DBFHeader,
+  DBFRowsOutput,
+  DBFField
+} from './types';
 
 const LITTLE_ENDIAN = true;
 const DBF_HEADER_SIZE = 32;
@@ -62,9 +28,10 @@ class DBFParser {
     data: []
   };
 
-  constructor({encoding}) {
-    this.textDecoder = new TextDecoder(encoding);
+  constructor(options: {encoding: string}) {
+    this.textDecoder = new TextDecoder(options.encoding);
   }
+
   /**
    * @param arrayBuffer
    */
@@ -89,6 +56,7 @@ class DBFParser {
     }
   }
 }
+
 /**
  * @param arrayBuffer
  * @param options
@@ -96,21 +64,27 @@ class DBFParser {
  */
 export function parseDBF(
   arrayBuffer: ArrayBuffer,
-  options: any = {}
-): DBFRowsOutput | DBFTableOutput {
-  const loaderOptions = options.dbf || {};
-  const {encoding} = loaderOptions;
+  options: DBFLoaderOptions = {}
+): DBFRowsOutput | DBFTableOutput | ObjectRowTable {
+  const {encoding = 'latin1'} = options.dbf || {};
 
   const dbfParser = new DBFParser({encoding});
   dbfParser.write(arrayBuffer);
   dbfParser.end();
 
   const {data, schema} = dbfParser.result;
-  switch (options.tables && options.tables.format) {
+  const shape = options?.dbf?.shape;
+  switch (shape) {
+    case 'object-row-table': {
+      const table: ObjectRowTable = {
+        shape: 'object-row-table',
+        schema,
+        data
+      };
+      return table;
+    }
     case 'table':
-      // TODO - parse columns
       return {schema, rows: data};
-
     case 'rows':
     default:
       return data;
@@ -122,10 +96,9 @@ export function parseDBF(
  */
 export async function* parseDBFInBatches(
   asyncIterator: AsyncIterable<ArrayBuffer> | Iterable<ArrayBuffer>,
-  options: any = {}
+  options: DBFLoaderOptions = {}
 ): AsyncIterable<DBFHeader | DBFRowsOutput | DBFTableOutput> {
-  const loaderOptions = options.dbf || {};
-  const {encoding} = loaderOptions;
+  const {encoding = 'latin1'} = options.dbf || {};
 
   const parser = new DBFParser({encoding});
   let headerReturned = false;
@@ -158,7 +131,7 @@ export async function* parseDBFInBatches(
 function parseState(
   state: STATE,
   result: DBFResult,
-  binaryReader: {[key: string]: any},
+  binaryReader: BinaryChunkReader,
   textDecoder: TextDecoder
 ): STATE {
   // eslint-disable-next-line no-constant-condition
@@ -171,7 +144,8 @@ function parseState(
 
         case STATE.START:
           // Parse initial file header
-          const dataView = binaryReader.getDataView(DBF_HEADER_SIZE, 'DBF header');
+          // DBF Header
+          const dataView = binaryReader.getDataView(DBF_HEADER_SIZE);
           if (!dataView) {
             return state;
           }
@@ -188,15 +162,17 @@ function parseState(
           // Parse DBF field descriptors (schema)
           const fieldDescriptorView = binaryReader.getDataView(
             // @ts-ignore
-            result.dbfHeader.headerLength - DBF_HEADER_SIZE,
-            'DBF field descriptors'
+            result.dbfHeader.headerLength - DBF_HEADER_SIZE
           );
           if (!fieldDescriptorView) {
             return state;
           }
 
           result.dbfFields = parseFieldDescriptors(fieldDescriptorView, textDecoder);
-          result.schema = new Schema(result.dbfFields.map((dbfField) => makeField(dbfField)));
+          result.schema = {
+            fields: result.dbfFields.map((dbfField) => makeField(dbfField)),
+            metadata: {}
+          };
 
           state = STATE.FIELD_PROPERTIES;
 
@@ -260,7 +236,7 @@ function parseDBFHeader(headerView: DataView): DBFHeader {
 /**
  * @param view
  */
-function parseFieldDescriptors(view: DataView, textDecoder): DBFField[] {
+function parseFieldDescriptors(view: DataView, textDecoder: TextDecoder): DBFField[] {
   // NOTE: this might overestimate the number of fields if the "Database
   // Container" container exists and is included in the headerLength
   const nFields = (view.byteLength - 1) / 32;
@@ -309,7 +285,7 @@ function parseRow(
   fields: DBFField[],
   textDecoder: TextDecoder
 ): {[key: string]: any} {
-  const out = {};
+  const out: {[key: string]: string | number | boolean | null} = {};
   let offset = 0;
   for (const field of fields) {
     const text = textDecoder.decode(
@@ -396,22 +372,22 @@ function parseCharacter(text: string): string | null {
  * @returns Field
  */
 // eslint-disable
-function makeField({name, dataType, fieldLength, decimal}): Field {
+function makeField({name, dataType, fieldLength, decimal}: DBFField): Field {
   switch (dataType) {
     case 'B':
-      return new Field(name, new Float64(), true);
+      return {name, type: 'float64', nullable: true, metadata: {}};
     case 'C':
-      return new Field(name, new Utf8(), true);
+      return {name, type: 'utf8', nullable: true, metadata: {}};
     case 'F':
-      return new Field(name, new Float64(), true);
+      return {name, type: 'float64', nullable: true, metadata: {}};
     case 'N':
-      return new Field(name, new Float64(), true);
+      return {name, type: 'float64', nullable: true, metadata: {}};
     case 'O':
-      return new Field(name, new Float64(), true);
+      return {name, type: 'float64', nullable: true, metadata: {}};
     case 'D':
-      return new Field(name, new TimestampMillisecond(), true);
+      return {name, type: 'timestamp-millisecond', nullable: true, metadata: {}};
     case 'L':
-      return new Field(name, new Bool(), true);
+      return {name, type: 'bool', nullable: true, metadata: {}};
     default:
       throw new Error('Unsupported data type');
   }

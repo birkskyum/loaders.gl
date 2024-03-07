@@ -1,4 +1,8 @@
-import type {GPUTextureFormat} from '../../types';
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import type {GPUTextureFormat} from '@loaders.gl/schema';
 
 const BROWSER_PREFIXES = ['', 'WEBKIT_', 'MOZ_'];
 
@@ -31,7 +35,6 @@ export function getSupportedGPUTextureFormats(gl?: WebGLRenderingContext): Set<s
 
     for (const prefix of BROWSER_PREFIXES) {
       for (const extension in WEBGL_EXTENSIONS) {
-        // eslint-disable-next-line max-depth
         if (gl && gl.getExtension(`${prefix}${extension}`)) {
           const gpuTextureFormat = WEBGL_EXTENSIONS[extension];
           formats.add(gpuTextureFormat);

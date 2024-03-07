@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // This file is derived from the tar-js code base under MIT license
 // See https://github.com/beatgammit/tar-js/blob/master/LICENSE
 /*
@@ -65,7 +69,7 @@ class Tar {
     const uid = opts.uid || 0;
     const gid = opts.gid || 0;
 
-    const data = {
+    const data: Record<string, string> = {
       fileName: filepath,
       fileMode: pad(mode, 7),
       uid: pad(uid, 7),

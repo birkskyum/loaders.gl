@@ -1,58 +1,76 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import type {
   TypedArray,
   BinaryGeometry,
   BinaryPointGeometry,
   BinaryLineGeometry,
-  BinaryPolygonGeometry
+  BinaryPolygonGeometry,
+  Geometry
 } from '@loaders.gl/schema';
+import {binaryToGeometry} from '@loaders.gl/gis';
+import type {WKBLoaderOptions} from '../wkb-loader';
 
-const NUM_DIMENSIONS = {
-  0: 2, // 2D
-  1: 3, // 3D (Z)
-  2: 3, // 3D (M)
-  3: 4 // 4D (ZM)
-};
+import {parseWKBHeader, WKBGeometryType} from './parse-wkb-header';
 
-export default function parseWKB(buffer): BinaryGeometry {
-  const view = new DataView(buffer);
-  let offset = 0;
+export function parseWKB(
+  arrayBuffer: ArrayBuffer,
+  options?: WKBLoaderOptions
+): BinaryGeometry | Geometry {
+  const binaryGeometry = parseWKBToBinary(arrayBuffer, options);
+  const shape = options?.wkb?.shape || 'binary-geometry';
+  switch (shape) {
+    case 'binary-geometry':
+      return binaryGeometry;
+    case 'geojson-geometry':
+      return binaryToGeometry(binaryGeometry);
+    case 'geometry':
+      // eslint-disable-next-line no-console
+      console.error('WKBLoader: "geometry" shape is deprecated, use "binary-geometry" instead');
+      return binaryToGeometry(binaryGeometry);
+    default:
+      throw new Error(shape);
+  }
+}
 
-  // Check endianness of data
-  const littleEndian = view.getUint8(offset) === 1;
-  offset++;
+export function parseWKBToBinary(
+  arrayBuffer: ArrayBuffer,
+  options?: WKBLoaderOptions
+): BinaryGeometry {
+  const dataView = new DataView(arrayBuffer);
 
-  // 4-digit code representing dimension and type of geometry
-  const geometryCode = view.getUint32(offset, littleEndian);
-  offset += 4;
+  const wkbHeader = parseWKBHeader(dataView);
 
-  const geometryType = geometryCode % 1000;
-  const dimension = NUM_DIMENSIONS[(geometryCode - geometryType) / 1000];
+  const {geometryType, dimensions, littleEndian} = wkbHeader;
+  const offset = wkbHeader.byteOffset;
 
   switch (geometryType) {
-    case 1:
-      const point = parsePoint(view, offset, dimension, littleEndian);
+    case WKBGeometryType.Point:
+      const point = parsePoint(dataView, offset, dimensions, littleEndian);
       return point.geometry;
-    case 2:
-      const line = parseLineString(view, offset, dimension, littleEndian);
+    case WKBGeometryType.LineString:
+      const line = parseLineString(dataView, offset, dimensions, littleEndian);
       return line.geometry;
-    case 3:
-      const polygon = parsePolygon(view, offset, dimension, littleEndian);
+    case WKBGeometryType.Polygon:
+      const polygon = parsePolygon(dataView, offset, dimensions, littleEndian);
       return polygon.geometry;
-    case 4:
-      const multiPoint = parseMultiPoint(view, offset, dimension, littleEndian);
+    case WKBGeometryType.MultiPoint:
+      const multiPoint = parseMultiPoint(dataView, offset, dimensions, littleEndian);
       multiPoint.type = 'Point';
       return multiPoint;
-    case 5:
-      const multiLine = parseMultiLineString(view, offset, dimension, littleEndian);
+    case WKBGeometryType.MultiLineString:
+      const multiLine = parseMultiLineString(dataView, offset, dimensions, littleEndian);
       multiLine.type = 'LineString';
       return multiLine;
-    case 6:
-      const multiPolygon = parseMultiPolygon(view, offset, dimension, littleEndian);
+    case WKBGeometryType.MultiPolygon:
+      const multiPolygon = parseMultiPolygon(dataView, offset, dimensions, littleEndian);
       multiPolygon.type = 'Polygon';
       return multiPolygon;
-    // case 7:
+    // case WKBGeometryType.GeometryCollection:
     // TODO: handle GeometryCollections
-    // return parseGeometryCollection(view, offset, dimension, littleEndian);
+    // return parseGeometryCollection(dataView, offset, dimensions, littleEndian);
     default:
       throw new Error(`WKB: Unsupported geometry type: ${geometryType}`);
   }
@@ -60,14 +78,14 @@ export default function parseWKB(buffer): BinaryGeometry {
 
 // Primitives; parse point and linear ring
 function parsePoint(
-  view,
-  offset,
-  dimension,
-  littleEndian
+  dataView: DataView,
+  offset: number,
+  dimension: number,
+  littleEndian: boolean
 ): {geometry: BinaryPointGeometry; offset: number} {
   const positions = new Float64Array(dimension);
   for (let i = 0; i < dimension; i++) {
-    positions[i] = view.getFloat64(offset, littleEndian);
+    positions[i] = dataView.getFloat64(offset, littleEndian);
     offset += 8;
   }
 
@@ -78,18 +96,18 @@ function parsePoint(
 }
 
 function parseLineString(
-  view,
-  offset,
-  dimension,
-  littleEndian
+  dataView: DataView,
+  offset: number,
+  dimension: number,
+  littleEndian: boolean
 ): {geometry: BinaryLineGeometry; offset: number} {
-  const nPoints = view.getUint32(offset, littleEndian);
+  const nPoints = dataView.getUint32(offset, littleEndian);
   offset += 4;
 
   // Instantiate array
   const positions = new Float64Array(nPoints * dimension);
   for (let i = 0; i < nPoints * dimension; i++) {
-    positions[i] = view.getFloat64(offset, littleEndian);
+    positions[i] = dataView.getFloat64(offset, littleEndian);
     offset += 8;
   }
 
@@ -109,20 +127,20 @@ function parseLineString(
 }
 
 // https://stackoverflow.com/a/55261098
-const cumulativeSum = (sum) => (value) => (sum += value);
+const cumulativeSum = (sum: number) => (value: number) => (sum += value);
 
 function parsePolygon(
-  view,
-  offset,
-  dimension,
-  littleEndian
+  dataView: DataView,
+  offset: number,
+  dimension: number,
+  littleEndian: boolean
 ): {geometry: BinaryPolygonGeometry; offset: number} {
-  const nRings = view.getUint32(offset, littleEndian);
+  const nRings = dataView.getUint32(offset, littleEndian);
   offset += 4;
 
   const rings: TypedArray[] = [];
   for (let i = 0; i < nRings; i++) {
-    const parsed = parseLineString(view, offset, dimension, littleEndian);
+    const parsed = parseLineString(dataView, offset, dimension, littleEndian);
     const {positions} = parsed.geometry;
     offset = parsed.offset;
     rings.push(positions.value);
@@ -150,24 +168,29 @@ function parsePolygon(
   };
 }
 
-function parseMultiPoint(view, offset, dimension, littleEndian): BinaryPointGeometry {
-  const nPoints = view.getUint32(offset, littleEndian);
+function parseMultiPoint(
+  dataView: DataView,
+  offset: number,
+  dimension: number,
+  littleEndian: boolean
+): BinaryPointGeometry {
+  const nPoints = dataView.getUint32(offset, littleEndian);
   offset += 4;
 
   const binaryPointGeometries: BinaryPointGeometry[] = [];
   for (let i = 0; i < nPoints; i++) {
     // Byte order for point
-    const littleEndianPoint = view.getUint8(offset) === 1;
+    const littleEndianPoint = dataView.getUint8(offset) === 1;
     offset++;
 
     // Assert point type
-    if (view.getUint32(offset, littleEndianPoint) % 1000 !== 1) {
+    if (dataView.getUint32(offset, littleEndianPoint) % 1000 !== 1) {
       throw new Error('WKB: Inner geometries of MultiPoint not of type Point');
     }
 
     offset += 4;
 
-    const parsed = parsePoint(view, offset, dimension, littleEndianPoint);
+    const parsed = parsePoint(dataView, offset, dimension, littleEndianPoint);
     offset = parsed.offset;
     binaryPointGeometries.push(parsed.geometry);
   }
@@ -175,23 +198,28 @@ function parseMultiPoint(view, offset, dimension, littleEndian): BinaryPointGeom
   return concatenateBinaryPointGeometries(binaryPointGeometries, dimension);
 }
 
-function parseMultiLineString(view, offset, dimension, littleEndian): BinaryLineGeometry {
-  const nLines = view.getUint32(offset, littleEndian);
+function parseMultiLineString(
+  dataView: DataView,
+  offset: number,
+  dimension: number,
+  littleEndian: boolean
+): BinaryLineGeometry {
+  const nLines = dataView.getUint32(offset, littleEndian);
   offset += 4;
 
   const binaryLineGeometries: BinaryLineGeometry[] = [];
   for (let i = 0; i < nLines; i++) {
     // Byte order for line
-    const littleEndianLine = view.getUint8(offset) === 1;
+    const littleEndianLine = dataView.getUint8(offset) === 1;
     offset++;
 
     // Assert type LineString
-    if (view.getUint32(offset, littleEndianLine) % 1000 !== 2) {
+    if (dataView.getUint32(offset, littleEndianLine) % 1000 !== 2) {
       throw new Error('WKB: Inner geometries of MultiLineString not of type LineString');
     }
     offset += 4;
 
-    const parsed = parseLineString(view, offset, dimension, littleEndianLine);
+    const parsed = parseLineString(dataView, offset, dimension, littleEndianLine);
     offset = parsed.offset;
     binaryLineGeometries.push(parsed.geometry);
   }
@@ -199,23 +227,28 @@ function parseMultiLineString(view, offset, dimension, littleEndian): BinaryLine
   return concatenateBinaryLineGeometries(binaryLineGeometries, dimension);
 }
 
-function parseMultiPolygon(view, offset, dimension, littleEndian): BinaryPolygonGeometry {
-  const nPolygons = view.getUint32(offset, littleEndian);
+function parseMultiPolygon(
+  dataView: DataView,
+  offset: number,
+  dimension: number,
+  littleEndian: boolean
+): BinaryPolygonGeometry {
+  const nPolygons = dataView.getUint32(offset, littleEndian);
   offset += 4;
 
   const binaryPolygonGeometries: BinaryPolygonGeometry[] = [];
   for (let i = 0; i < nPolygons; i++) {
     // Byte order for polygon
-    const littleEndianPolygon = view.getUint8(offset) === 1;
+    const littleEndianPolygon = dataView.getUint8(offset) === 1;
     offset++;
 
     // Assert type Polygon
-    if (view.getUint32(offset, littleEndianPolygon) % 1000 !== 3) {
+    if (dataView.getUint32(offset, littleEndianPolygon) % 1000 !== 3) {
       throw new Error('WKB: Inner geometries of MultiPolygon not of type Polygon');
     }
     offset += 4;
 
-    const parsed = parsePolygon(view, offset, dimension, littleEndianPolygon);
+    const parsed = parsePolygon(dataView, offset, dimension, littleEndianPolygon);
     offset = parsed.offset;
     binaryPolygonGeometries.push(parsed.geometry);
   }

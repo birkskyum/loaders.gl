@@ -1,8 +1,8 @@
-import type {Writer} from '@loaders.gl/loader-utils';
+import type {Writer, WriterOptions} from '@loaders.gl/loader-utils';
 import {VERSION} from './lib/utils/version';
 import {encodeGLTFSync} from './lib/encoders/encode-gltf';
 
-export type GLTFWriterOptions = {
+export type GLTFWriterOptions = WriterOptions & {
   gltf?: {};
   byteOffset?: number;
 };
@@ -19,12 +19,12 @@ export const GLTFWriter = {
   extensions: ['glb'], // We only support encoding to binary GLB, not to JSON GLTF
   mimeTypes: ['model/gltf-binary'], // 'model/gltf+json',
   binary: true,
-
-  encodeSync,
-
   options: {
     gltf: {}
-  }
+  },
+
+  encode: async (gltf, options: GLTFWriterOptions = {}) => encodeSync(gltf, options),
+  encodeSync
 };
 
 function encodeSync(gltf, options: GLTFWriterOptions = {}) {

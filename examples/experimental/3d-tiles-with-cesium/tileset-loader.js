@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /* global Cesium */
 import {Vector3} from '@math.gl/core';
 import {setLoaderOptions} from '@loaders.gl/core';

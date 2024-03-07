@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import {Ellipsoid} from '@math.gl/geospatial';
 import {Matrix4, Vector3} from '@math.gl/core';
 import {assert} from '@loaders.gl/loader-utils';
@@ -59,5 +63,7 @@ export function calculateTransformProps(tileHeader, tile) {
   tile.cartographicOrigin = cartographicOrigin;
 
   // Deprecated, drop
-  tile.modelMatrix = tile.cartographicModelMatrix;
+  if (!tile.coordinateSystem) {
+    tile.modelMatrix = tile.cartographicModelMatrix;
+  }
 }

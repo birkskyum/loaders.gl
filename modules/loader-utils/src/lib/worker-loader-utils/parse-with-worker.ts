@@ -1,5 +1,10 @@
-import type {WorkerJob, WorkerMessageType, WorkerMessagePayload} from '@loaders.gl/worker-utils';
-import type {Loader, LoaderOptions, LoaderContext} from '../../types';
+import {
+  WorkerJob,
+  WorkerMessageType,
+  WorkerMessagePayload,
+  isBrowser
+} from '@loaders.gl/worker-utils';
+import type {Loader, LoaderOptions, LoaderContext} from '../../loader-types';
 import {WorkerFarm, getWorkerURL} from '@loaders.gl/worker-utils';
 
 /**
@@ -12,6 +17,11 @@ export function canParseWithWorker(loader: Loader, options?: LoaderOptions) {
     return false;
   }
 
+  // Node workers are still experimental
+  if (!isBrowser && !options?._nodeWorkers) {
+    return false;
+  }
+
   return loader.worker && options?.worker;
 }
 
@@ -21,10 +31,10 @@ export function canParseWithWorker(loader: Loader, options?: LoaderOptions) {
  */
 export async function parseWithWorker(
   loader: Loader,
-  data,
+  data: any,
   options?: LoaderOptions,
   context?: LoaderContext,
-  parseOnMainThread?: (arrayBuffer: ArrayBuffer, options: {[key: string]: any}) => Promise<void>
+  parseOnMainThread?: (arrayBuffer: ArrayBuffer, options: {[key: string]: any}) => Promise<unknown>
 ) {
   const name = loader.id; // TODO
   const url = getWorkerURL(loader, options);
@@ -33,22 +43,26 @@ export async function parseWithWorker(
   const workerPool = workerFarm.getWorkerPool({name, url});
 
   // options.log object contains functions which cannot be transferred
+  // context.fetch & context.parse functions cannot be transferred
   // TODO - decide how to handle logging on workers
   options = JSON.parse(JSON.stringify(options));
+  context = JSON.parse(JSON.stringify(context || {}));
 
   const job = await workerPool.startJob(
     'process-on-worker',
-    // eslint-disable-next-line
-    onMessage.bind(null, parseOnMainThread)
+    // @ts-expect-error
+    onMessage.bind(null, parseOnMainThread) // eslint-disable-line @typescript-eslint/no-misused-promises
   );
 
   job.postMessage('process', {
     // @ts-ignore
     input: data,
-    options
+    options,
+    context
   });
 
   const result = await job.result;
+  // TODO - what is going on here?
   return await result.result;
 }
 
@@ -59,7 +73,7 @@ export async function parseWithWorker(
  * @param payload
  */
 async function onMessage(
-  parseOnMainThread,
+  parseOnMainThread: (arrayBuffer: ArrayBuffer, options?: {[key: string]: any}) => Promise<void>,
   job: WorkerJob,
   type: WorkerMessageType,
   payload: WorkerMessagePayload
@@ -70,7 +84,7 @@ async function onMessage(
       break;
 
     case 'error':
-      job.error(payload.error);
+      job.error(new Error(payload.error));
       break;
 
     case 'process':

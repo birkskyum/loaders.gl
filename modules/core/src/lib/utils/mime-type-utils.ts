@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // TODO - build/integrate proper MIME type parsing
 // https://mimesniff.spec.whatwg.org/
 

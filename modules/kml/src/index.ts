@@ -1,3 +1,11 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+// POLYFILL: DOMParser
+// - Node: Yes
+// - Browser: No
+
 export type {GPXLoaderOptions} from './gpx-loader';
 export {GPXLoader} from './gpx-loader';
 

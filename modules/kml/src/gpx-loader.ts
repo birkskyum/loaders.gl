@@ -1,13 +1,26 @@
-import type {LoaderOptions} from '@loaders.gl/loader-utils';
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import type {LoaderOptions, LoaderWithParser} from '@loaders.gl/loader-utils';
 import {geojsonToBinary} from '@loaders.gl/gis';
+import type {
+  GeoJSONTable,
+  FeatureCollection,
+  ObjectRowTable,
+  BinaryFeatureCollection
+} from '@loaders.gl/schema';
 import {gpx} from '@tmcw/togeojson';
+import {DOMParser} from '@xmldom/xmldom';
 
 // __VERSION__ is injected by babel-plugin-version-inline
 // @ts-ignore TS2304: Cannot find name '__VERSION__'.
 const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'latest';
 
 export type GPXLoaderOptions = LoaderOptions & {
-  gpx?: {};
+  gpx?: {
+    shape?: 'object-row-table' | 'geojson-table' | 'binary' | 'raw';
+  };
 };
 
 const GPX_HEADER = `\
@@ -17,7 +30,11 @@ const GPX_HEADER = `\
 /**
  * Loader for GPX (GPS exchange format)
  */
-export const GPXLoader = {
+export const GPXLoader: LoaderWithParser<
+  ObjectRowTable | GeoJSONTable | BinaryFeatureCollection,
+  never,
+  GPXLoaderOptions
+> = {
   name: 'GPX (GPS exchange format)',
   id: 'gpx',
   module: 'kml',
@@ -26,35 +43,44 @@ export const GPXLoader = {
   mimeTypes: ['application/gpx+xml'],
   text: true,
   tests: [GPX_HEADER],
-  parse: async (arrayBuffer, options) =>
+  parse: async (arrayBuffer, options?: GPXLoaderOptions) =>
     parseTextSync(new TextDecoder().decode(arrayBuffer), options),
   parseTextSync,
   options: {
-    gpx: {},
-    gis: {format: 'geojson'}
+    gpx: {shape: 'geojson-table'},
+    gis: {}
   }
 };
 
-function parseTextSync(text: string, options: any) {
+function parseTextSync(
+  text: string,
+  options?: GPXLoaderOptions
+): ObjectRowTable | GeoJSONTable | BinaryFeatureCollection {
   const doc = new DOMParser().parseFromString(text, 'text/xml');
-  const geojson = gpx(doc);
+  const geojson: FeatureCollection = gpx(doc);
 
-  switch (options?.gpx?.type) {
-    case 'object-row-table':
-      return geojson.features;
-    default:
-  }
+  const gpxOptions = {...GPXLoader.options.gpx, ...options?.gpx};
 
-  switch (options?.gis?.format) {
-    case 'geojson':
-      return geojson;
+  switch (gpxOptions.shape) {
+    case 'object-row-table': {
+      const table: ObjectRowTable = {
+        shape: 'object-row-table',
+        data: geojson.features
+      };
+      return table;
+    }
+    case 'geojson-table': {
+      const table: GeoJSONTable = {
+        shape: 'geojson-table',
+        type: 'FeatureCollection',
+        features: geojson.features
+      };
+      return table;
+    }
     case 'binary':
       return geojsonToBinary(geojson.features);
-    case 'raw':
-      return doc;
+
     default:
-      throw new Error();
+      throw new Error(gpxOptions.shape);
   }
 }
-
-export const _typecheckGPXLoader = GPXLoader;

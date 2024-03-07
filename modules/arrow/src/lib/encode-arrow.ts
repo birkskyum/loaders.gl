@@ -1,7 +1,11 @@
-import {Table, FloatVector, DateVector} from 'apache-arrow';
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import * as arrow from 'apache-arrow';
 import {AnyArrayType, VECTOR_TYPES} from '../types';
 
-type ColumnarTable = {
+export type ColumnarTable = {
   name: string;
   array: AnyArrayType;
   type: number;
@@ -15,30 +19,28 @@ type ColumnarTable = {
  * @returns - encoded ArrayBuffer
  */
 export function encodeArrowSync(data: ColumnarTable): ArrayBuffer {
-  const vectors: any[] = [];
-  const arrayNames: string[] = [];
+  const vectors: Record<string, arrow.Vector> = {};
   for (const arrayData of data) {
-    arrayNames.push(arrayData.name);
     const arrayVector = createVector(arrayData.array, arrayData.type);
-    vectors.push(arrayVector);
+    vectors[arrayData.name] = arrayVector;
   }
-  const table = Table.new(vectors, arrayNames);
-  const arrowBuffer = table.serialize();
+  const table = new arrow.Table(vectors);
+  const arrowBuffer = arrow.tableToIPC(table);
   return arrowBuffer;
 }
 
 /**
- * Create Arrow Vector from given data and vector type
+ * Create Arrow arrow.Vector from given data and vector type
  * @param array {import('../types').AnyArrayType} - columns data
  * @param type {number} - the writer options
  * @return a vector of one of vector's types defined in the Apache Arrow library
  */
-function createVector(array, type) {
+function createVector(array, type): arrow.Vector {
   switch (type) {
     case VECTOR_TYPES.DATE:
-      return DateVector.from(array);
+      return arrow.vectorFromArray(array);
     case VECTOR_TYPES.FLOAT:
     default:
-      return FloatVector.from(array);
+      return arrow.vectorFromArray(array);
   }
 }

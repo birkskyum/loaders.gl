@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 export function getErrorMessageFromResponseSync(response: Response): string {
   return `Failed to fetch resource ${response.url}(${response.status}): ${response.statusText} `;
 }

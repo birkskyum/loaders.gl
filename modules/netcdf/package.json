@@ -1,8 +1,9 @@
 {
   "name": "@loaders.gl/netcdf",
   "description": "Loader for NetCDF",
-  "version": "3.0.1",
+  "version": "4.2.0-alpha.4",
   "license": "MIT",
+  "type": "module",
   "publishConfig": {
     "access": "public"
   },
@@ -16,9 +17,16 @@
     "parser",
     "NetCDF"
   ],
-  "types": "src/index.ts",
-  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
   "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "sideEffects": false,
   "files": [
     "src",
@@ -26,13 +34,11 @@
     "README.md"
   ],
   "scripts": {
-    "pre-build-disabled": "npm run build-bundle",
-    "build-worker": "webpack --entry ./src/workers/mvt-worker.ts --output ./dist/mvt-worker.js --config ../../scripts/webpack/worker.js",
-    "build-bundle": "webpack --display=minimal --config ../../scripts/webpack/bundle.js"
+    "pre-build": "npm run build-bundle && npm run build-bundle -- --env=dev",
+    "build-bundle": "ocular-bundle ./src/index.ts"
   },
   "dependencies": {
-    "@loaders.gl/loader-utils": "3.0.1"
+    "@loaders.gl/loader-utils": "4.2.0-alpha.4"
   },
-  "devDependencies": {
-  }
+  "gitHead": "c95a4ff72512668a93d9041ce8636bac09333fd5"
 }

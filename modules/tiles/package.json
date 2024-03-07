@@ -1,8 +1,9 @@
 {
   "name": "@loaders.gl/tiles",
-  "version": "3.0.1",
+  "version": "4.2.0-alpha.4",
   "description": "Common components for different tiles loaders.",
   "license": "MIT",
+  "type": "module",
   "publishConfig": {
     "access": "public"
   },
@@ -19,9 +20,16 @@
     "point cloud",
     "pointcloud"
   ],
-  "types": "src/index.ts",
-  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
   "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "sideEffects": false,
   "files": [
     "src",
@@ -29,17 +37,23 @@
     "README.md"
   ],
   "scripts": {
-    "pre-build": "npm run build-bundle",
-    "build-bundle": "webpack --display=minimal --config ../../scripts/webpack/bundle.js"
+    "pre-build": "npm run build-bundle && npm run build-bundle -- --env=dev",
+    "build-bundle": "ocular-bundle ./src/index.ts"
   },
   "dependencies": {
-    "@loaders.gl/core": "3.0.1",
-    "@loaders.gl/loader-utils": "3.0.1",
-    "@loaders.gl/math": "3.0.1",
-    "@math.gl/core": "^3.5.1",
-    "@math.gl/culling": "^3.5.1",
-    "@math.gl/geospatial": "^3.5.1",
-    "@math.gl/web-mercator": "^3.5.1",
-    "@probe.gl/stats": "^3.4.0"
-  }
+    "@loaders.gl/loader-utils": "4.2.0-alpha.4",
+    "@loaders.gl/math": "4.2.0-alpha.4",
+    "@math.gl/core": "^4.0.0",
+    "@math.gl/culling": "^4.0.0",
+    "@math.gl/geospatial": "^4.0.0",
+    "@math.gl/web-mercator": "^4.0.0",
+    "@probe.gl/stats": "^4.0.2"
+  },
+  "peerDependencies": {
+    "@loaders.gl/core": "^4.0.0"
+  },
+  "devDependencies": {
+    "@deck.gl/core": "^8.9.0"
+  },
+  "gitHead": "c95a4ff72512668a93d9041ce8636bac09333fd5"
 }

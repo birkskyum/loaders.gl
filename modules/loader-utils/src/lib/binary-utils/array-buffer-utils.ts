@@ -1,46 +1,10 @@
 import {TypedArray} from '../../types';
-import {isBuffer, bufferToArrayBuffer} from './buffer-utils';
-
-/**
- * Convert an object to an array buffer
- */
-export function toArrayBuffer(data: any): ArrayBuffer {
-  // Note: Should be called first, Buffers can trigger other detections below
-  if (isBuffer(data)) {
-    return bufferToArrayBuffer(data);
-  }
-
-  if (data instanceof ArrayBuffer) {
-    return data;
-  }
-
-  // Careful - Node Buffers look like Uint8Arrays (keep after isBuffer)
-  if (ArrayBuffer.isView(data)) {
-    if (data.byteOffset === 0 && data.byteLength === data.buffer.byteLength) {
-      return data.buffer;
-    }
-    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-  }
-
-  if (typeof data === 'string') {
-    const text = data;
-    const uint8Array = new TextEncoder().encode(text);
-    return uint8Array.buffer;
-  }
-
-  // HACK to support Blob polyfill
-  if (data && typeof data === 'object' && data._toArrayBuffer) {
-    return data._toArrayBuffer();
-  }
-
-  throw new Error('toArrayBuffer');
-}
 
 /**
  * compare two binary arrays for equality
- * @param {ArrayBuffer} a
- * @param {ArrayBuffer} b
- * @param {number} byteLength
+ * @param a
+ * @param b
+ * @param byteLength
  */
 export function compareArrayBuffers(
   arrayBuffer1: ArrayBuffer,
@@ -62,10 +26,20 @@ export function compareArrayBuffers(
 }
 
 /**
- * Concatenate a sequence of ArrayBuffers
+ * Concatenate a sequence of ArrayBuffers from arguments
  * @return A concatenated ArrayBuffer
  */
 export function concatenateArrayBuffers(...sources: (ArrayBuffer | Uint8Array)[]): ArrayBuffer {
+  return concatenateArrayBuffersFromArray(sources);
+}
+
+/**
+ * Concatenate a sequence of ArrayBuffers from array
+ * @return A concatenated ArrayBuffer
+ */
+export function concatenateArrayBuffersFromArray(
+  sources: (ArrayBuffer | Uint8Array)[]
+): ArrayBuffer {
   // Make sure all inputs are wrapped in typed arrays
   const sourceArrays = sources.map((source2) =>
     source2 instanceof ArrayBuffer ? new Uint8Array(source2) : source2
@@ -91,7 +65,7 @@ export function concatenateArrayBuffers(...sources: (ArrayBuffer | Uint8Array)[]
 /**
  * Concatenate arbitrary count of typed arrays
  * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Typed_arrays
- * @param {...*} arrays - list of arrays. All arrays should be the same type
+ * @param - list of arrays. All arrays should be the same type
  * @return A concatenated TypedArray
  */
 export function concatenateTypedArrays<T>(...typedArrays: T[]): T {

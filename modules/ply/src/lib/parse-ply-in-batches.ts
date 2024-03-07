@@ -20,20 +20,19 @@
 //     diffuse_blue: 'blue'
 //   }
 // });
-// @ts-nocheck
 
-import {makeLineIterator, makeTextDecoderIterator, forEach} from '@loaders.gl/core';
+import {makeLineIterator, makeTextDecoderIterator, forEach} from '@loaders.gl/loader-utils';
 import normalizePLY from './normalize-ply';
-import {PLYMesh, PLYHeader, ASCIIElement, PLYAttributes} from './ply-types';
+import {PLYMesh, PLYHeader, PLYElement, PLYProperty, PLYAttributes} from './ply-types';
 
-let currentElement: ASCIIElement;
+let currentElement: PLYElement;
 
 /**
  * PARSER
  * @param iterator
  * @param options
  */
-export default async function* parsePLYInBatches(
+export async function* parsePLYInBatches(
   iterator: AsyncIterable<ArrayBuffer> | Iterable<ArrayBuffer>,
   options: any
 ): AsyncIterable<PLYMesh> {
@@ -60,7 +59,7 @@ export default async function* parsePLYInBatches(
  * @returns
  */
 async function parsePLYHeader(
-  lineIterator: AsyncIterable<ArrayBuffer> | Iterable<ArrayBuffer>,
+  lineIterator: AsyncIterable<string> | Iterable<string>,
   options: {[key: string]: any}
 ): Promise<PLYHeader> {
   const header: PLYHeader = {
@@ -135,24 +134,22 @@ async function parsePLYHeader(
   return header;
 }
 
-function makePLYElementProperty(propertValues: string[], propertyNameMapping: []) {
-  const property: {[index: string]: string} = {
-    type: propertValues[0]
-  };
-
-  if (property.type === 'list') {
-    property.name = propertValues[3];
-    property.countType = propertValues[1];
-    property.itemType = propertValues[2];
-  } else {
-    property.name = propertValues[1];
+function makePLYElementProperty(propertyValues: string[], propertyNameMapping: []): PLYProperty {
+  const type = propertyValues[0];
+  switch (type) {
+    case 'list':
+      return {
+        type,
+        name: propertyValues[3],
+        countType: propertyValues[1],
+        itemType: propertyValues[2]
+      };
+    default:
+      return {
+        type,
+        name: propertyValues[1]
+      };
   }
-
-  if (propertyNameMapping && property.name in propertyNameMapping) {
-    property.name = propertyNameMapping[property.name];
-  }
-
-  return property;
 }
 
 // ASCII PARSING
@@ -161,7 +158,7 @@ function makePLYElementProperty(propertValues: string[], propertyNameMapping: []
  * @param header
  * @returns
  */
-async function parseASCII(lineIterator: string, header: PLYHeader) {
+async function parseASCII(lineIterator: AsyncIterable<string>, header: PLYHeader) {
   // PLY ascii format specification, as per http://en.wikipedia.org/wiki/PLY_(file_format)
   const attributes: PLYAttributes = {
     indices: [],
@@ -183,7 +180,7 @@ async function parseASCII(lineIterator: string, header: PLYHeader) {
         currentElementCount = 0;
       }
 
-      const element = parseASCIIElement(header.elements[currentElement].properties, line);
+      const element = parsePLYElement(header.elements[currentElement].properties, line);
       handleElement(attributes, header.elements[currentElement].name, element);
       currentElementCount++;
     }
@@ -230,7 +227,7 @@ function parseASCIINumber(n: string, type: string): number {
  * @param line
  * @returns element
  */
-function parseASCIIElement(properties: any[], line: string) {
+function parsePLYElement(properties: any[], line: string) {
   const values: any = line.split(/\s+/);
 
   const element = {};

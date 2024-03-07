@@ -1,4 +1,16 @@
-import {CompressedTextureExtractOptions, TextureLevel} from '../../types';
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import type {TextureLevel} from '@loaders.gl/schema';
+
+export type CompressedTextureExtractOptions = {
+  mipMapLevels: number;
+  width: number;
+  height: number;
+  sizeFunction: Function;
+  internalFormat: number;
+};
 
 /**
  * Extract mipmap images from compressed texture buffer
@@ -11,7 +23,7 @@ import {CompressedTextureExtractOptions, TextureLevel} from '../../types';
  * @returns Array of the texture levels
  */
 export function extractMipmapImages(
-  data: Uint8Array | Array<Object>,
+  data: Uint8Array | object[],
   options: CompressedTextureExtractOptions
 ): TextureLevel[] {
   const images = new Array(options.mipMapLevels);
@@ -21,7 +33,9 @@ export function extractMipmapImages(
   let offset = 0;
 
   for (let i = 0; i < options.mipMapLevels; ++i) {
+    // @ts-expect-error
     const levelSize = getLevelSize(options, levelWidth, levelHeight, data, i);
+    // @ts-expect-error
     const levelData = getLevelData(data, i, offset, levelSize);
 
     images[i] = {
@@ -41,7 +55,12 @@ export function extractMipmapImages(
   return images;
 }
 
-function getLevelData(data, index, offset, levelSize) {
+function getLevelData(
+  data: Uint8Array,
+  index: number,
+  offset: number,
+  levelSize: number
+): Uint8Array {
   if (!Array.isArray(data)) {
     return new Uint8Array(data.buffer, data.byteOffset + offset, levelSize);
   }
@@ -49,7 +68,13 @@ function getLevelData(data, index, offset, levelSize) {
   return data[index].levelData;
 }
 
-function getLevelSize(options, levelWidth, levelHeight, data, index) {
+function getLevelSize(
+  options: CompressedTextureExtractOptions,
+  levelWidth: number,
+  levelHeight: number,
+  data: Uint8Array[] | object[],
+  index: number
+): number {
   if (!Array.isArray(data)) {
     return options.sizeFunction(levelWidth, levelHeight);
   }

@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import * as THREE from 'three';
 const WEBMERCATOR_EXTENT = 20037508.3427892;
 

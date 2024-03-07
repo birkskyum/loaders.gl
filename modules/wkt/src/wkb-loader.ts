@@ -1,11 +1,24 @@
-import type {Loader, LoaderWithParser} from '@loaders.gl/loader-utils';
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import type {Loader, LoaderWithParser, LoaderOptions} from '@loaders.gl/loader-utils';
+import {BinaryGeometry, Geometry} from '@loaders.gl/schema';
 import {VERSION} from './lib/utils/version';
-import parseWKB from './lib/parse-wkb';
+import {parseWKB} from './lib/parse-wkb';
+import {isWKB} from './lib/parse-wkb-header';
+
+export type WKBLoaderOptions = LoaderOptions & {
+  wkb?: {
+    /** 'geometry' is deprecated use 'geojson-geometry' */
+    shape: 'geojson-geometry' | 'binary-geometry' | 'geometry';
+  };
+};
 
 /**
  * Worker loader for WKB (Well-Known Binary)
  */
-export const WKBWorkerLoader = {
+export const WKBWorkerLoader: Loader<Geometry | BinaryGeometry, never, WKBLoaderOptions> = {
   name: 'WKB',
   id: 'wkb',
   module: 'wkt',
@@ -14,19 +27,20 @@ export const WKBWorkerLoader = {
   category: 'geometry',
   extensions: ['wkb'],
   mimeTypes: [],
+  // TODO can we define static, serializable tests, eg. some binary strings?
+  tests: [isWKB],
   options: {
-    wkb: {}
+    wkb: {
+      shape: 'binary-geometry' // 'geojson-geometry'
+    }
   }
 };
 
 /**
  * Loader for WKB (Well-Known Binary)
  */
-export const WKBLoader = {
+export const WKBLoader: LoaderWithParser<BinaryGeometry | Geometry, never, WKBLoaderOptions> = {
   ...WKBWorkerLoader,
-  parse: async (arrayBuffer) => parseWKB(arrayBuffer),
+  parse: async (arrayBuffer: ArrayBuffer) => parseWKB(arrayBuffer),
   parseSync: parseWKB
 };
-
-export const _typecheckWKBWorkerLoader: Loader = WKBWorkerLoader;
-export const _typecheckWKBLoader: LoaderWithParser = WKBLoader;

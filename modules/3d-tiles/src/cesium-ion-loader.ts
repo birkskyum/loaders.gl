@@ -1,4 +1,8 @@
-import type {LoaderWithParser} from '@loaders.gl/loader-utils';
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright vis.gl contributors
+
+import type {LoaderOptions, LoaderWithParser} from '@loaders.gl/loader-utils';
 import {Tiles3DLoader} from './tiles-3d-loader';
 import {getIonTilesetMetadata} from './lib/ion/ion';
 
@@ -18,7 +22,7 @@ async function preload(url, options = {}) {
 /**
  * Loader for 3D tiles from Cesium ION
  */
-export const CesiumIonLoader: LoaderWithParser = {
+export const CesiumIonLoader: LoaderWithParser<unknown, never, LoaderOptions> = {
   ...Tiles3DLoader,
   id: 'cesium-ion',
   name: 'Cesium Ion',

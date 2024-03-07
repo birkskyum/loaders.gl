@@ -1,0 +1,49 @@
+{
+  "name": "@loaders.gl/bson",
+  "version": "4.2.0-alpha.4",
+  "description": "Framework-independent loader for JSON and streaming JSON formats",
+  "license": "MIT",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/visgl/loaders.gl"
+  },
+  "keywords": [
+    "BSON",
+    "Binary JSON",
+    "table",
+    "loader",
+    "parser"
+  ],
+  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "src",
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "pre-build": "npm run build-bundle && npm run build-bundle -- --env=dev",
+    "build-bundle": "ocular-bundle ./src/index.ts"
+  },
+  "dependencies": {
+    "@loaders.gl/gis": "4.2.0-alpha.4",
+    "@loaders.gl/loader-utils": "4.2.0-alpha.4",
+    "@loaders.gl/schema": "4.2.0-alpha.4",
+    "@types/bson": "4.2.0",
+    "bson": "4.2.0"
+  },
+  "gitHead": "c95a4ff72512668a93d9041ce8636bac09333fd5"
+}

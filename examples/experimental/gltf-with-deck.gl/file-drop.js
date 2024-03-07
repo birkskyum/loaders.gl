@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 // Add drag and drop functions for given canvas
 export default function fileDrop(canvas, onDrop) {
   canvas.ondragover = (event) => {

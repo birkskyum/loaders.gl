@@ -1,24 +1,31 @@
-import type {Loader, LoaderWithParser} from '@loaders.gl/loader-utils';
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import type {Loader, LoaderOptions, LoaderWithParser} from '@loaders.gl/loader-utils';
+import type {TextureLevel} from '@loaders.gl/schema';
 import {VERSION} from './lib/utils/version';
 import parseBasis from './lib/parsers/parse-basis';
 
 /**
  * Worker loader for Basis super compressed textures
  */
-export const BasisWorkerLoader = {
+export const BasisWorkerLoader: Loader<TextureLevel[][], never, LoaderOptions> = {
   name: 'Basis',
   id: 'basis',
   module: 'textures',
   version: VERSION,
   worker: true,
-  extensions: ['basis'],
-  mimeTypes: ['application/octet-stream'],
+  extensions: ['basis', 'ktx2'],
+  mimeTypes: ['application/octet-stream', 'image/ktx2'],
   tests: ['sB'],
   binary: true,
   options: {
     basis: {
-      format: 'rgb565', // TODO: auto...
-      libraryPath: 'libs/'
+      format: 'auto', // gl context doesn't exist on a worker thread
+      libraryPath: 'libs/',
+      containerFormat: 'auto', // 'basis' || 'ktx2' || 'auto'
+      module: 'transcoder' // 'transcoder' || 'encoder'
     }
   }
 };
@@ -26,11 +33,7 @@ export const BasisWorkerLoader = {
 /**
  * Loader for Basis super compressed textures
  */
-export const BasisLoader = {
+export const BasisLoader: LoaderWithParser<TextureLevel[][], never, LoaderOptions> = {
   ...BasisWorkerLoader,
   parse: parseBasis
 };
-
-// TYPE TESTS - TODO find a better way than exporting junk
-export const _TypecheckBasisWorkerLoader: Loader = BasisWorkerLoader;
-export const _TypecheckBasisLoader: LoaderWithParser = BasisLoader;

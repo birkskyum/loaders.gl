@@ -1,9 +1,13 @@
-import type {ArrowTableBatch} from '@loaders.gl/schema';
-import {Schema, Field, RecordBatch, Float32Vector, Float32} from 'apache-arrow';
-import {ColumnarTableBatchAggregator} from '@loaders.gl/schema';
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
 
-export default class ArrowTableBatchAggregator extends ColumnarTableBatchAggregator {
-  arrowSchema: Schema | null;
+import {ColumnarTableBatchAggregator} from '@loaders.gl/schema';
+import type {ArrowTableBatch} from './arrow-table';
+import * as arrow from 'apache-arrow';
+
+export class ArrowTableBatchAggregator extends ColumnarTableBatchAggregator {
+  arrowSchema: arrow.Schema | null;
 
   constructor(schema, options) {
     super(schema, options);
@@ -15,15 +19,23 @@ export default class ArrowTableBatchAggregator extends ColumnarTableBatchAggrega
     if (batch) {
       // Get the arrow schema
       this.arrowSchema = this.arrowSchema || getArrowSchema(batch.schema);
+
       // Get arrow format vectors
       const arrowVectors = getArrowVectors(this.arrowSchema, batch.data);
+
       // Create the record batch
-      // new RecordBatch(schema, numRows, vectors, ...);
-      const recordBatch = new RecordBatch(this.arrowSchema, batch.length, arrowVectors);
+      const recordBatch = new arrow.RecordBatch(
+        this.arrowSchema,
+        arrow.makeData({
+          type: new arrow.Struct(this.arrowSchema.fields),
+          children: arrowVectors.map(({data}) => data[0])
+        })
+      );
+
       return {
         shape: 'arrow-table',
         batchType: 'data',
-        data: recordBatch,
+        data: new arrow.Table([recordBatch]),
         length: batch.length
       };
     }
@@ -33,14 +45,15 @@ export default class ArrowTableBatchAggregator extends ColumnarTableBatchAggrega
 }
 
 // Convert from a simple loaders.gl schema to an Arrow schema
-function getArrowSchema(schema) {
-  const arrowFields: Field[] = [];
+function getArrowSchema(schema): arrow.Schema {
+  const arrowFields: arrow.Field[] = [];
   for (const key in schema) {
     const field = schema[key];
     if (field.type === Float32Array) {
-      const metadata = field; // just store the original field as metadata
-      // arrow: new Field(name, nullable, metadata)
-      const arrowField = new Field(field.name, new Float32(), field.nullable, metadata);
+      // TODO - just store the original field as metadata?
+      const metadata = new Map(); // field;
+      // arrow: new arrow.Field(name, nullable, metadata)
+      const arrowField = new arrow.Field(field.name, new arrow.Float32(), field.nullable, metadata);
       arrowFields.push(arrowField);
     }
   }
@@ -48,16 +61,16 @@ function getArrowSchema(schema) {
     throw new Error('No arrow convertible fields');
   }
 
-  return new Schema(arrowFields);
+  return new arrow.Schema(arrowFields);
 }
 
 // Convert from simple loaders.gl arrays to arrow vectors
-function getArrowVectors(arrowSchema, data) {
+function getArrowVectors(arrowSchema, data): arrow.Vector[] {
   const arrowVectors: any[] = [];
   for (const field of arrowSchema.fields) {
     const vector = data[field.name];
     if (vector instanceof Float32Array) {
-      const arrowVector = Float32Vector.from(vector);
+      const arrowVector = arrow.makeVector(vector);
       arrowVectors.push(arrowVector);
     }
   }

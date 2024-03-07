@@ -1,32 +1,74 @@
-// COMMON CATEGORY
-export type {TypedArray, NumberArray, AnyArray} from './types';
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
 
-export type {Batch} from './category/common';
+// COMMON CATEGORY
+export type {
+  TypedArray,
+  BigTypedArray,
+  TypedArrayConstructor,
+  BigTypedArrayConstructor,
+  NumberArray,
+  ArrayType,
+  AnyArray
+} from './types/types';
+
+export type {Schema, Field, DataType, SchemaMetadata, FieldMetadata} from './types/schema';
+
+export type {Batch} from './types/batch';
 
 // TABLE CATEGORY TYPES
-
 export type {
   Table,
+  RowTable,
   ArrayRowTable,
   ObjectRowTable,
+  GeoJSONTable,
   ColumnarTable,
-  ArrowTable
-} from './category/table';
+  ArrowTable,
+  Tables
+} from './types/category-table';
 export type {
   TableBatch,
-  RowArrayTableBatch,
-  RowObjectTableBatch,
+  ArrayRowTableBatch,
+  ObjectRowTableBatch,
+  GeoJSONTableBatch,
   ColumnarTableBatch,
   ArrowTableBatch
-} from './category/table';
+} from './types/category-table';
 
 // TABLE CATEGORY UTILS
-export {default as TableBatchBuilder} from './lib/table/table-batch-builder';
-export type {TableBatchAggregator} from './lib/table/table-batch-aggregator';
-export {default as RowTableBatchAggregator} from './lib/table/row-table-batch-aggregator';
-export {default as ColumnarTableBatchAggregator} from './lib/table/columnar-table-batch-aggregator';
+export {TableBatchBuilder} from './lib/table/batches/table-batch-builder';
+export type {TableBatchAggregator} from './lib/table/batches/table-batch-aggregator';
+export {RowTableBatchAggregator} from './lib/table/batches/row-table-batch-aggregator';
+export {ColumnarTableBatchAggregator} from './lib/table/batches/columnar-table-batch-aggregator';
 
-export {convertToObjectRow, convertToArrayRow} from './lib/utils/row-utils';
+export {
+  isTable,
+  getTableLength,
+  getTableNumCols,
+  getTableCell,
+  getTableRowShape,
+  getTableColumnIndex,
+  getTableColumnName,
+  getTableRowAsObject,
+  getTableRowAsArray,
+  makeRowIterator,
+  makeArrayRowIterator,
+  makeObjectRowIterator
+} from './lib/table/simple-table/table-accessors';
+
+export {ArrowLikeTable} from './lib/table/arrow-api/arrow-like-table';
+
+export {makeTableFromData} from './lib/table/simple-table/make-table';
+export {
+  makeTableFromBatches,
+  makeBatchFromTable
+} from './lib/table/simple-table/make-table-from-batches';
+export {convertTable} from './lib/table/simple-table/convert-table';
+export {deduceTableSchema} from './lib/table/simple-table/table-schema';
+export {convertToObjectRow, convertToArrayRow} from './lib/table/simple-table/row-utils';
+export {getDataTypeFromArray} from './lib/table/simple-table/data-type';
 
 // MESH CATEGORY
 export type {
@@ -36,21 +78,53 @@ export type {
   MeshGeometry,
   MeshAttribute,
   MeshAttributes
-} from './category/mesh';
+} from './types/category-mesh';
 
-export {getMeshSize, getMeshBoundingBox} from './category/mesh-utils/mesh-utils';
+export {getMeshSize, getMeshBoundingBox} from './lib/mesh/mesh-utils';
+// Commented out due to https://github.com/visgl/deck.gl/issues/6906 and https://github.com/visgl/loaders.gl/issues/2177
+// export {convertMesh} from './category/mesh/convert-mesh';
+export {
+  deduceMeshSchema,
+  deduceMeshField,
+  makeMeshAttributeMetadata
+} from './lib/mesh/deduce-mesh-schema';
+
+// TEXTURES
+export type {TextureLevel, GPUTextureFormat} from './types/category-texture';
+
+// IMAGES
+export type {ImageDataType, ImageType, ImageTypeEnum} from './types/category-image';
 
 // TYPES
 // GIS CATEGORY - GEOJSON
-export type {GeoJSON, Feature, Geometry, Position, GeoJsonProperties} from './category/gis';
 export type {
+  GeoJSON,
+  Feature,
+  FeatureCollection,
+  Geometry,
+  Position,
+  GeoJsonProperties,
   Point,
   MultiPoint,
   LineString,
   MultiLineString,
   Polygon,
-  MultiPolygon
-} from './category/gis';
+  MultiPolygon,
+  GeometryCollection
+} from './types/category-gis';
+
+export type {GeojsonGeometryInfo} from './types/category-gis';
+
+// GIS CATEGORY - FLAT GEOJSON
+export type {
+  FlatFeature,
+  FlatIndexedGeometry,
+  FlatGeometry,
+  FlatGeometryType,
+  FlatPoint,
+  FlatLineString,
+  FlatPolygon
+} from './types/category-gis';
 
 // GIS CATEGORY - BINARY
 export type {
@@ -60,19 +134,20 @@ export type {
   BinaryLineGeometry,
   BinaryPolygonGeometry,
   BinaryAttribute
-} from './category/gis';
+} from './types/category-gis';
 export type {
-  BinaryFeatures,
-  BinaryPointFeatures,
-  BinaryLineFeatures,
-  BinaryPolygonFeatures
-} from './category/gis';
+  BinaryFeatureCollection,
+  BinaryFeature,
+  BinaryPointFeature,
+  BinaryLineFeature,
+  BinaryPolygonFeature
+} from './types/category-gis';
 
 // SCHEMA
 export {
-  Schema,
-  Field,
-  DataType,
+  Schema as ArrowLikeSchema,
+  Field as ArrowLikeField,
+  DataType as ArrowLikeDataType,
   Null,
   Binary,
   Bool,
@@ -106,13 +181,11 @@ export {
   IntervalYearMonth,
   FixedSizeList,
   Struct
-} from './lib/schema';
-
-// SCHEMA UTILS
-export {deduceTableSchema} from './lib/schema-utils/deduce-table-schema';
-export {deduceMeshSchema, deduceMeshField} from './lib/schema-utils/deduce-mesh-schema';
-export {getTypeInfo} from './lib/schema-utils/get-type-info';
-export {getArrowTypeFromTypedArray} from './lib/schema-utils/type-utils';
+} from './lib/table/arrow-api';
 
 // EXPERIMENTAL APIs
+
+// SCHEMA UTILS
+export {getTypeInfo} from './lib/table/arrow-api/get-type-info';
+
 export {default as AsyncQueue} from './lib/utils/async-queue';

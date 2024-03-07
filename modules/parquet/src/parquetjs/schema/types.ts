@@ -1,7 +1,7 @@
 // Forked from https://github.com/kbajalc/parquets under MIT license (Copyright (c) 2017 ironSource Ltd.)
 /* eslint-disable camelcase */
-import BSON from 'bson';
-import {OriginalType, ParquetType, PrimitiveType} from './declare';
+import {BSONLoader, BSONWriter} from '@loaders.gl/bson';
+import {OriginalType, ParquetField, ParquetType, PrimitiveType} from './declare';
 
 export interface ParquetTypeKit {
   primitiveType: PrimitiveType;
@@ -137,6 +137,30 @@ export const PARQUET_LOGICAL_TYPES: Record<ParquetType, ParquetTypeKit> = {
     typeLength: 12,
     toPrimitive: toPrimitive_INTERVAL,
     fromPrimitive: fromPrimitive_INTERVAL
+  },
+  DECIMAL_INT32: {
+    primitiveType: 'INT32',
+    originalType: 'DECIMAL_INT32',
+    toPrimitive: decimalToPrimitive_INT32,
+    fromPrimitive: decimalFromPrimitive_INT
+  },
+  DECIMAL_INT64: {
+    primitiveType: 'INT64',
+    originalType: 'DECIMAL_INT64',
+    toPrimitive: decimalToPrimitive_INT64,
+    fromPrimitive: decimalFromPrimitive_INT
+  },
+  DECIMAL_BYTE_ARRAY: {
+    primitiveType: 'BYTE_ARRAY',
+    originalType: 'DECIMAL_BYTE_ARRAY',
+    toPrimitive: decimalToPrimitive_BYTE_ARRAY,
+    fromPrimitive: decimalFromPrimitive_BYTE_ARRAY
+  },
+  DECIMAL_FIXED_LEN_BYTE_ARRAY: {
+    primitiveType: 'FIXED_LEN_BYTE_ARRAY',
+    originalType: 'DECIMAL_FIXED_LEN_BYTE_ARRAY',
+    toPrimitive: decimalToPrimitive_BYTE_ARRAY,
+    fromPrimitive: decimalFromPrimitive_BYTE_ARRAY
   }
 };
 
@@ -144,53 +168,51 @@ export const PARQUET_LOGICAL_TYPES: Record<ParquetType, ParquetTypeKit> = {
  * Convert a value from it's native representation to the internal/underlying
  * primitive type
  */
-export function toPrimitive(type: ParquetType, value: any) {
+export function toPrimitive(type: ParquetType, value: unknown, field?: ParquetField): unknown {
   if (!(type in PARQUET_LOGICAL_TYPES)) {
     throw new Error(`invalid type: ${type}`);
   }
 
-  return PARQUET_LOGICAL_TYPES[type].toPrimitive(value);
+  return PARQUET_LOGICAL_TYPES[type].toPrimitive(value, field);
 }
 
 /**
  * Convert a value from it's internal/underlying primitive representation to
  * the native representation
  */
-export function fromPrimitive(type: ParquetType, value: any) {
+export function fromPrimitive(type: ParquetType, value: unknown, field?: ParquetField) {
   if (!(type in PARQUET_LOGICAL_TYPES)) {
     throw new Error(`invalid type: ${type}`);
   }
 
   if ('fromPrimitive' in PARQUET_LOGICAL_TYPES[type]) {
-    return PARQUET_LOGICAL_TYPES[type].fromPrimitive?.(value);
+    return PARQUET_LOGICAL_TYPES[type].fromPrimitive?.(value, field);
     // tslint:disable-next-line:no-else-after-return
   }
   return value;
 }
 
-function toPrimitive_BOOLEAN(value: any) {
+function toPrimitive_BOOLEAN(value: unknown): boolean {
   return Boolean(value);
 }
 
-function fromPrimitive_BOOLEAN(value: any) {
+function fromPrimitive_BOOLEAN(value: any): boolean {
   return Boolean(value);
 }
 
-function toPrimitive_FLOAT(value: any) {
+function toPrimitive_FLOAT(value: any): number {
   const v = parseFloat(value);
   if (isNaN(v)) {
     throw new Error(`invalid value for FLOAT: ${value}`);
   }
-
   return v;
 }
 
-function toPrimitive_DOUBLE(value: any) {
+function toPrimitive_DOUBLE(value: any): number {
   const v = parseFloat(value);
   if (isNaN(v)) {
     throw new Error(`invalid value for DOUBLE: ${value}`);
   }
-
   return v;
 }
 
@@ -239,17 +261,34 @@ function toPrimitive_INT32(value: any) {
   return v;
 }
 
-function toPrimitive_UINT32(value: any) {
+function decimalToPrimitive_INT32(value: number, field: ParquetField): number {
+  const primitiveValue = value * 10 ** (field.scale || 0);
+  const v = Math.round(((primitiveValue * 10 ** -field.presision!) % 1) * 10 ** field.presision!);
+  if (v < -0x80000000 || v > 0x7fffffff || isNaN(v)) {
+    throw new Error(`invalid value for INT32: ${value}`);
+  }
+  return v;
+}
+
+function toPrimitive_UINT32(value: any): number {
   const v = parseInt(value, 10);
   if (v < 0 || v > 0xffffffffffff || isNaN(v)) {
     throw new Error(`invalid value for UINT32: ${value}`);
   }
-
   return v;
 }
 
-function toPrimitive_INT64(value: any) {
+function toPrimitive_INT64(value: any): number {
   const v = parseInt(value, 10);
+  if (isNaN(v)) {
+    throw new Error(`invalid value for INT64: ${value}`);
+  }
+  return v;
+}
+
+function decimalToPrimitive_INT64(value: number, field: ParquetField) {
+  const primitiveValue = value * 10 ** (field.scale || 0);
+  const v = Math.round(((primitiveValue * 10 ** -field.presision!) % 1) * 10 ** field.presision!);
   if (isNaN(v)) {
     throw new Error(`invalid value for INT64: ${value}`);
   }
@@ -275,32 +314,38 @@ function toPrimitive_INT96(value: any) {
   return v;
 }
 
-function toPrimitive_BYTE_ARRAY(value: any) {
+function toPrimitive_BYTE_ARRAY(value: any): Buffer {
   return Buffer.from(value);
 }
 
-function toPrimitive_UTF8(value: any) {
+function decimalToPrimitive_BYTE_ARRAY(value: any): Buffer {
+  // TBD
+  return Buffer.from(value);
+}
+
+function toPrimitive_UTF8(value: any): Buffer {
   return Buffer.from(value, 'utf8');
 }
 
-function fromPrimitive_UTF8(value: any) {
+function fromPrimitive_UTF8(value: any): string {
   return value.toString();
 }
 
-function toPrimitive_JSON(value: any) {
+function toPrimitive_JSON(value: any): Buffer {
   return Buffer.from(JSON.stringify(value));
 }
 
-function fromPrimitive_JSON(value: any) {
+function fromPrimitive_JSON(value: any): unknown {
   return JSON.parse(value);
 }
 
-function toPrimitive_BSON(value: any) {
-  return Buffer.from(BSON.serialize(value));
+function toPrimitive_BSON(value: any): Buffer {
+  const arrayBuffer = BSONWriter.encodeSync?.(value) as ArrayBuffer;
+  return Buffer.from(arrayBuffer);
 }
 
 function fromPrimitive_BSON(value: any) {
-  return BSON.deserialize(value);
+  return BSONLoader.parseSync?.(value);
 }
 
 function toPrimitive_TIME_MILLIS(value: any) {
@@ -312,18 +357,17 @@ function toPrimitive_TIME_MILLIS(value: any) {
   return v;
 }
 
-function toPrimitive_TIME_MICROS(value: any) {
+function toPrimitive_TIME_MICROS(value: any): number {
   const v = parseInt(value, 10);
   if (v < 0 || isNaN(v)) {
     throw new Error(`invalid value for TIME_MICROS: ${value}`);
   }
-
   return v;
 }
 
 const kMillisPerDay = 86400000;
 
-function toPrimitive_DATE(value: any) {
+function toPrimitive_DATE(value: any): number {
   /* convert from date */
   if (value instanceof Date) {
     return value.getTime() / kMillisPerDay;
@@ -340,11 +384,11 @@ function toPrimitive_DATE(value: any) {
   }
 }
 
-function fromPrimitive_DATE(value: any) {
+function fromPrimitive_DATE(value: any): Date {
   return new Date(value * kMillisPerDay);
 }
 
-function toPrimitive_TIMESTAMP_MILLIS(value: any) {
+function toPrimitive_TIMESTAMP_MILLIS(value: any): number {
   /* convert from date */
   if (value instanceof Date) {
     return value.getTime();
@@ -361,7 +405,7 @@ function toPrimitive_TIMESTAMP_MILLIS(value: any) {
   }
 }
 
-function fromPrimitive_TIMESTAMP_MILLIS(value: any) {
+function fromPrimitive_TIMESTAMP_MILLIS(value: any): Date {
   return new Date(value);
 }
 
@@ -408,4 +452,32 @@ function fromPrimitive_INTERVAL(value: any) {
   const millis = buf.readUInt32LE(8);
 
   return {months, days, milliseconds: millis};
+}
+
+function decimalFromPrimitive_INT(value: any, field: ParquetField) {
+  const presisionInt = Math.round(((value * 10 ** -field.presision!) % 1) * 10 ** field.presision!);
+  return presisionInt * 10 ** -(field.scale || 0);
+}
+
+function decimalFromPrimitive_BYTE_ARRAY(value: any, field: ParquetField) {
+  let number = 0;
+  if (value.length <= 4) {
+    // Bytewise operators faster. Use them if it is possible
+    for (let i = 0; i < value.length; i++) {
+      // `value.length - i - 1` bytes have reverse order (big-endian)
+      const component = value[i] << (8 * (value.length - i - 1));
+      number += component;
+    }
+  } else {
+    for (let i = 0; i < value.length; i++) {
+      // `value.length - i - 1` bytes have reverse order (big-endian)
+      const component = value[i] * 2 ** (8 * (value.length - 1 - i));
+      number += component;
+    }
+  }
+
+  const presisionInt = Math.round(
+    ((number * 10 ** -field.presision!) % 1) * 10 ** field.presision!
+  );
+  return presisionInt * 10 ** -(field.scale || 0);
 }

@@ -1,8 +1,9 @@
 {
   "name": "@loaders.gl/math",
-  "version": "3.0.1",
+  "version": "4.2.0-alpha.4",
   "description": "Experimental math classes for loaders.gl",
   "license": "MIT",
+  "type": "module",
   "publishConfig": {
     "access": "public"
   },
@@ -17,9 +18,16 @@
     "GLB",
     "glTF"
   ],
-  "types": "src/index.ts",
-  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
   "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "sideEffects": false,
   "files": [
     "src",
@@ -31,8 +39,9 @@
     "pre-build": "echo \"Nothing to build in @loaders.gl/math\""
   },
   "dependencies": {
-    "@loaders.gl/images": "3.0.1",
-    "@loaders.gl/loader-utils": "3.0.1",
-    "@math.gl/core": "^3.5.1"
-  }
+    "@loaders.gl/images": "4.2.0-alpha.4",
+    "@loaders.gl/loader-utils": "4.2.0-alpha.4",
+    "@math.gl/core": "^4.0.0"
+  },
+  "gitHead": "c95a4ff72512668a93d9041ce8636bac09333fd5"
 }

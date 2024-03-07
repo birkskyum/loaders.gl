@@ -1,14 +1,14 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /* global importScripts */
-import {global, isBrowser, isWorker} from '../env-utils/globals';
+import {isBrowser, isWorker} from '../env-utils/globals';
 import * as node from '../node/require-utils.node';
 import {assert} from '../env-utils/assert';
-import {VERSION as __VERSION__} from '../env-utils/version';
+import {VERSION} from '../env-utils/version';
 
-// TODO - unpkg.com doesn't seem to have a `latest` specifier for alpha releases...
-const LATEST = 'beta';
-const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : LATEST;
-
-const loadLibraryPromises = {}; // promises
+const loadLibraryPromises: Record<string, Promise<any>> = {}; // promises
 
 /**
  * Dynamically loads a library ("module")
@@ -28,59 +28,78 @@ const loadLibraryPromises = {}; // promises
 export async function loadLibrary(
   libraryUrl: string,
   moduleName: string | null = null,
-  options: object = {}
+  options: object = {},
+  libraryName: string | null = null
 ): Promise<any> {
   if (moduleName) {
-    libraryUrl = getLibraryUrl(libraryUrl, moduleName, options);
+    libraryUrl = getLibraryUrl(libraryUrl, moduleName, options, libraryName);
   }
-
   // Ensure libraries are only loaded once
+
   loadLibraryPromises[libraryUrl] =
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     loadLibraryPromises[libraryUrl] || loadLibraryFromFile(libraryUrl);
   return await loadLibraryPromises[libraryUrl];
 }
 
 // TODO - sort out how to resolve paths for main/worker and dev/prod
-export function getLibraryUrl(library, moduleName?: string, options?): string {
+export function getLibraryUrl(
+  library: string,
+  moduleName?: string,
+  options: any = {},
+  libraryName: string | null = null
+): string {
   // Check if already a URL
-  if (library.startsWith('http')) {
+  if (!options.useLocalLibraries && library.startsWith('http')) {
     return library;
   }
 
+  libraryName = libraryName || library;
+
   // Allow application to import and supply libraries through `options.modules`
   const modules = options.modules || {};
-  if (modules[library]) {
-    return modules[library];
+  if (modules[libraryName]) {
+    return modules[libraryName];
   }
 
   // Load from local files, not from CDN scripts in Node.js
   // TODO - needs to locate the modules directory when installed!
   if (!isBrowser) {
-    return `modules/${moduleName}/dist/libs/${library}`;
+    return `modules/${moduleName}/dist/libs/${libraryName}`;
   }
 
   // In browser, load from external scripts
   if (options.CDN) {
     assert(options.CDN.startsWith('http'));
-    return `${options.CDN}/${moduleName}@${VERSION}/dist/libs/${library}`;
+    return `${options.CDN}/${moduleName}@${VERSION}/dist/libs/${libraryName}`;
   }
 
   // TODO - loading inside workers requires paths relative to worker script location...
   if (isWorker) {
-    return `../src/libs/${library}`;
+    return `../src/libs/${libraryName}`;
   }
 
-  return `modules/${moduleName}/src/libs/${library}`;
+  return `modules/${moduleName}/src/libs/${libraryName}`;
 }
 
-async function loadLibraryFromFile(libraryUrl) {
+async function loadLibraryFromFile(libraryUrl: string): Promise<any> {
   if (libraryUrl.endsWith('wasm')) {
-    const response = await fetch(libraryUrl);
-    return await response.arrayBuffer();
+    return await loadAsArrayBuffer(libraryUrl);
   }
 
   if (!isBrowser) {
-    return node.requireFromFile && (await node.requireFromFile(libraryUrl));
+    // TODO - Node doesn't yet support dynamic import from https URLs
+    // try {
+    //   return await import(libraryUrl);
+    // } catch (error) {
+    //   console.error(error);
+    // }
+    try {
+      return node && node.requireFromFile && (await node.requireFromFile(libraryUrl));
+    } catch (error) {
+      console.error(error); // eslint-disable-line no-console
+      return null;
+    }
   }
   if (isWorker) {
     // return importScripts(libraryUrl);
@@ -90,8 +109,7 @@ async function loadLibraryFromFile(libraryUrl) {
   //   return await loadScriptFromFile(libraryUrl);
   // }
 
-  const response = await fetch(libraryUrl);
-  const scriptSource = await response.text();
+  const scriptSource = await loadAsText(libraryUrl);
   return loadLibraryFromString(scriptSource, libraryUrl);
 }
 
@@ -113,14 +131,14 @@ async function loadScriptFromFile(libraryUrl) {
 //  - Potentially bypasses CORS
 // Upside is that this separates fetching and parsing
 // we could create a`LibraryLoader` or`ModuleLoader`
-function loadLibraryFromString(scriptSource, id) {
+function loadLibraryFromString(scriptSource: string, id: string): null | any {
   if (!isBrowser) {
     return node.requireFromString && node.requireFromString(scriptSource, id);
   }
 
   if (isWorker) {
     // Use lvalue trick to make eval run in global scope
-    eval.call(global, scriptSource); // eslint-disable-line no-eval
+    eval.call(globalThis, scriptSource); // eslint-disable-line no-eval
     // https://stackoverflow.com/questions/9107240/1-evalthis-vs-evalthis-in-javascript
     // http://perfectionkills.com/global-eval-what-are-the-options/
     return null;
@@ -152,3 +170,24 @@ function combineWorkerWithLibrary(worker, jsContent) {
   this.workerSourceURL = URL.createObjectURL(new Blob([body]));
 }
 */
+
+async function loadAsArrayBuffer(url: string): Promise<ArrayBuffer> {
+  if (isBrowser || !node.readFileAsArrayBuffer || url.startsWith('http')) {
+    const response = await fetch(url);
+    return await response.arrayBuffer();
+  }
+  return await node.readFileAsArrayBuffer(url);
+}
+
+/**
+ * Load a file from local file system
+ * @param filename
+ * @returns
+ */
+async function loadAsText(url: string): Promise<string> {
+  if (isBrowser || !node.readFileAsText || url.startsWith('http')) {
+    const response = await fetch(url);
+    return await response.text();
+  }
+  return await node.readFileAsText(url);
+}

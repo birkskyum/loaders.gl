@@ -1,8 +1,9 @@
 {
   "name": "@loaders.gl/crypto",
-  "version": "3.0.1",
+  "version": "4.2.0-alpha.4",
   "description": "Cryptographic/hashing plugins for loaders.gl",
   "license": "MIT",
+  "type": "module",
   "publishConfig": {
     "access": "public"
   },
@@ -11,15 +12,26 @@
     "url": "https://github.com/visgl/loaders.gl"
   },
   "keywords": [
-    "webgl",
-    "loader",
-    "3d",
-    "mesh",
-    "point cloud"
+    "crypto",
+    "hash",
+    "digest",
+    "encrypt",
+    "decrypt",
+    "crc32",
+    "crc32c",
+    "md5",
+    "sha256"
   ],
-  "types": "src/index.ts",
-  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "main": "dist/index.cjs",
   "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "sideEffects": false,
   "files": [
     "src",
@@ -27,15 +39,16 @@
     "README.md"
   ],
   "scripts": {
-    "pre-build": "npm run build-worker && npm run build-bundle",
-    "build-bundle": "webpack --display=minimal --config ../../scripts/webpack/bundle.js",
-    "build-worker": "webpack --entry ./src/workers/worker.ts --output ./dist/worker.js --env.dev --config ../../scripts/webpack/worker.js"
+    "pre-build": "npm run build-bundle && npm run build-bundle -- --env=dev && npm run build-worker && npm run build-worker-node",
+    "build-bundle": "ocular-bundle ./src/index.ts",
+    "build-worker": "esbuild src/workers/crypto-worker.ts --outfile=dist/crypto-worker.js --target=esnext --bundle --minify --sourcemap --define:__VERSION__=\\\"$npm_package_version\\\"",
+    "build-worker-node": "esbuild src/workers/crypto-worker-node.ts --outfile=dist/crypto-worker-node.js --platform=node --target=esnext,node16 --bundle --minify --sourcemap --define:__VERSION__=\\\"$npm_package_version\\\""
   },
   "dependencies": {
     "@babel/runtime": "^7.3.1",
-    "@loaders.gl/loader-utils": "3.0.1",
-    "@loaders.gl/worker-utils": "3.0.1",
-    "@types/crypto-js": "^4.0.1"
+    "@loaders.gl/loader-utils": "4.2.0-alpha.4",
+    "@loaders.gl/worker-utils": "4.2.0-alpha.4",
+    "@types/crypto-js": "^4.0.2"
   },
   "devDependencies": {
     "crypto-js": "^3.0.0 || ^4.0.0"
@@ -43,5 +56,6 @@
   "browser": {
     "crypto": false,
     "sse4_crc32": false
-  }
+  },
+  "gitHead": "c95a4ff72512668a93d9041ce8636bac09333fd5"
 }

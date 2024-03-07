@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import type {ReadStream} from 'fs';
 
 import {makeStringIterator} from './make-string-iterator';

@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 import type {LoaderWithParser, LoaderOptions} from '@loaders.gl/loader-utils';
 import parseVideo from './lib/parsers/parse-video';
 
@@ -18,7 +22,7 @@ const DEFAULT_LOADER_OPTIONS: VideoLoaderOptions = {
   video: {}
 };
 
-export const VideoLoader = {
+export const VideoLoader: LoaderWithParser<HTMLVideoElement, never, VideoLoaderOptions> = {
   name: 'Video',
   id: 'video',
   module: 'video',
@@ -31,5 +35,3 @@ export const VideoLoader = {
   // tests: arrayBuffer => Boolean(getBinaryImageMetadata(new DataView(arrayBuffer))),
   options: DEFAULT_LOADER_OPTIONS
 };
-
-export const _typecheckVideoLoader: LoaderWithParser = VideoLoader;

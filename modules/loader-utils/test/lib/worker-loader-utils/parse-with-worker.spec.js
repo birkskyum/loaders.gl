@@ -1,41 +1,41 @@
-import test from 'tape-catch';
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
+import test from 'tape-promise/tape';
 import {WorkerPool} from '@loaders.gl/worker-utils';
-import {toArrayBuffer} from '@loaders.gl/loader-utils';
-import {parseWithWorker} from '@loaders.gl/loader-utils';
-import {registerLoaders, _unregisterLoaders} from '@loaders.gl/core/lib/api/register-loaders';
+import {toArrayBuffer, parseWithWorker} from '@loaders.gl/loader-utils';
+import {registerLoaders, _unregisterLoaders} from '@loaders.gl/core';
 import {NullWorkerLoader} from '@loaders.gl/core';
 
 const CHUNKS_TOTAL = 6;
 const MAX_CONCURRENCY = 3;
 
-const hasWorker = typeof Worker !== 'undefined';
-
 test('parseWithWorker', async (t) => {
-  if (!hasWorker) {
-    t.comment('Worker test is browser only');
+  if (!WorkerPool.isSupported()) {
+    t.comment('Workers not supported, skipping tests');
     t.end();
     return;
   }
 
+  const testResponse = new Response();
   const testData = [{chunk: 0}, {chunk: 1}, {chunk: 2}];
-  let parsedData = await parseWithWorker(NullWorkerLoader, testData, {
-    _workerType: 'test'
-  });
+  const testOptions = {
+    _workerType: 'test',
+    reuseWorkers: false,
+    custom: 'custom'
+  };
+  const testContext = {response: testResponse, fetch, _parse: async (arrayBuffer) => arrayBuffer};
+  const result = await parseWithWorker(NullWorkerLoader, testData, testOptions, testContext);
 
-  t.deepEquals(parsedData, testData, 'data parsed with relative worker url');
-
-  parsedData = await parseWithWorker(NullWorkerLoader, testData, {
-    _workerType: 'test'
-  });
-
-  t.deepEquals(parsedData, testData, 'data parsed with absolute worker url');
+  t.equal(result, null);
 
   t.end();
 });
 
 test.skip('createLoaderWorker', async (t) => {
-  if (!hasWorker) {
-    t.comment('Worker test is browser only');
+  if (!WorkerPool.isSupported()) {
+    t.comment('Workers not supported, skipping tests');
     t.end();
     return;
   }
@@ -74,8 +74,8 @@ test.skip('createLoaderWorker', async (t) => {
 });
 
 test.skip('createLoaderWorker#nested', async (t) => {
-  if (!hasWorker) {
-    t.comment('Worker test is browser only');
+  if (!WorkerPool.isSupported()) {
+    t.comment('Workers not supported, skipping tests');
     t.end();
     return;
   }

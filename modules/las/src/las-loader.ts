@@ -1,5 +1,6 @@
 // LASER (LAS) FILE FORMAT
 import type {Loader, LoaderOptions} from '@loaders.gl/loader-utils';
+import type {LASMesh} from './lib/las-types';
 
 // __VERSION__ is injected by babel-plugin-version-inline
 // @ts-ignore TS2304: Cannot find name '__VERSION__'.
@@ -7,24 +8,19 @@ const VERSION = typeof __VERSION__ !== 'undefined' ? __VERSION__ : 'latest';
 
 export type LASLoaderOptions = LoaderOptions & {
   las?: {
+    shape?: 'mesh' | 'columnar-table' | 'arrow-table';
     fp64?: boolean;
     skip?: number;
     colorDepth?: number | string;
   };
-};
-
-const DEFAULT_LAS_OPTIONS: LASLoaderOptions = {
-  las: {
-    fp64: false,
-    skip: 1,
-    colorDepth: 8
-  }
+  onProgress?: Function;
 };
 
 /**
  * Loader for the LAS (LASer) point cloud format
+ * @note Does not support LAS v1.4
  */
-export const LASLoader = {
+export const LASLoader: Loader<LASMesh, never, LASLoaderOptions> = {
   name: 'LAS',
   id: 'las',
   module: 'las',
@@ -35,7 +31,12 @@ export const LASLoader = {
   text: true,
   binary: true,
   tests: ['LAS'],
-  options: DEFAULT_LAS_OPTIONS
+  options: {
+    las: {
+      shape: 'mesh',
+      fp64: false,
+      skip: 1,
+      colorDepth: 8
+    }
+  }
 };
-
-export const _typecheckLoader: Loader = LASLoader;

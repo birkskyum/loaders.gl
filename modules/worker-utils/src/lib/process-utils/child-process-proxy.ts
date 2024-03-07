@@ -1,3 +1,7 @@
+// loaders.gl
+// SPDX-License-Identifier: MIT
+// Copyright (c) vis.gl contributors
+
 /* eslint-disable no-console */
 // Avoid using named imports for Node builtins to help with "empty" resolution
 // for bundlers targeting browser environments. Access imports & types
@@ -19,6 +23,8 @@ export type ChildProcessProxyProps = {
   wait?: number;
   /** Options passed on to Node'.js `spawn` */
   spawn?: ChildProcess.SpawnOptionsWithoutStdio;
+  /** Should proceed if stderr stream recieved data */
+  ignoreStderr?: boolean;
   /** Callback when the  */
   onStart?: (proxy: ChildProcessProxy) => void;
   onSuccess?: (proxy: ChildProcessProxy) => void;
@@ -44,7 +50,7 @@ export default class ChildProcessProxy {
   props: ChildProcessProxyProps = {...DEFAULT_PROPS};
   private childProcess: ChildProcess.ChildProcess | null = null;
   private port: number = 0;
-  private successTimer?;
+  private successTimer?: any; // NodeJS.Timeout;
 
   // constructor(props?: {id?: string});
   constructor({id = 'browser-driver'} = {}) {
@@ -83,11 +89,12 @@ export default class ChildProcessProxy {
         childProcess.stdout.on('data', (data) => {
           console.log(data.toString());
         });
-        // TODO - add option regarding whether stderr should be treated as data
         childProcess.stderr.on('data', (data) => {
           console.log(`Child process wrote to stderr: "${data}".`);
-          this._clearTimeout();
-          reject(new Error(data));
+          if (!props.ignoreStderr) {
+            this._clearTimeout();
+            reject(new Error(data));
+          }
         });
         childProcess.on('error', (error) => {
           console.log(`Child process errored with ${error}`);
@@ -121,7 +128,7 @@ export default class ChildProcessProxy {
       // eslint-disable-next-line no-process-exit
       process.exit(statusCode);
     } catch (error) {
-      console.error(error.message || error);
+      console.error((error as Error).message || error);
       // eslint-disable-next-line no-process-exit
       process.exit(1);
     }
